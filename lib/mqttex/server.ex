@@ -19,6 +19,7 @@ defmodule Mqttex.Server do
 		{:ok, ConnectionState.new [connection: connection, client_proc: client_proc, state: :open]}
 	end
 	
+	@spec start_link(Mqttex.Connection.t, pid) -> Mqttex.ConnAckMsg.t
 	def start_link(Mqttex.Connection= connection, client_proc // self()) do
 		case :gen_server.start_link({:global, connection.client_id}, __MODULE__, [connection, client_proc], []) do
 			{:ok, pid}       -> {:ok, pid}
