@@ -19,22 +19,23 @@ defmodule Mqttex.Server do
 
 	
 	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
-	def start_link(Mqttex.Connection= connection, client_proc // self()) do
-		case :gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc}) do
-			{:ok, pid}       -> {Mqttex.ConnAckMsg.new[status: :ok], pid}
-			{:error, reason} -> Mqttex.ConnAckMsg.new[status: reason]
+	def start_link( Mqttex.Connection[] = connection, client_proc // self()) do
+		case :gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc},
+									[timeout: connection.keep_alive_server]) do
+			{:ok, pid}       -> {Mqttex.ConnAckMsg.new([status: :ok]), pid}
+			{:error, reason} -> Mqttex.ConnAckMsg.new [status: reason]
 		end
 	end
 
-	@spec ping(Mqttex.PingReqMsg.t) :: Mqttex.PingRespMsg
-	def ping(_ping_req) do
-		:pong =  :gen_fsm.sync_send_event(@my_name, :ping)
+	@spec ping(pid, Mqttex.PingReqMsg.t) :: Mqttex.PingRespMsg
+	def ping(server, Mqttex.PingReqMsg[] = _ping_req) do
+		:pong =  :gen_fsm.sync_send_event(server, :ping)
 		Mqttex.PingRespMsg.new
 	end
 	
-	@spec disconnect(Mqttex.DisconnectMsg.t) :: :none
-	def disconnect(_diconnect_msg) do
-		:gen_fsm.send_event(@my_name, :disconnect)
+	@spec disconnect(pid, Mqttex.DisconnectMsg.t) :: :none
+	def disconnect(server, _diconnect_msg) do
+		:gen_fsm.send_event(server, :disconnect)
 	end
 
 
@@ -44,23 +45,24 @@ defmodule Mqttex.Server do
 	def init({connection, client_proc}) do
 		# TODO: check that the connection data is proper. Invalidity results in {:stop, error_code}, 
 		# where error_code is of type conn_ack_type
+		IO.puts "#{__MODULE__}.init"
 		{:ok, :clean_session, 
 			ConnectionState.new([connection: connection, client_proc: client_proc]), 
 			connection.keep_alive_server }
 	end
 
 	@doc "Events in state `clean_session` with replies"
-	def clean_session(:ping, from, ConnectionState=state) do
+	def clean_session(:ping, from, ConnectionState[]=state) do
 		{:reply, :pong, :clean_session, state, state.connection.keep_alive_server}
 	end
 
 	@doc "Event in state `clean_session` without a reply"
-	def clean_session(:timeout, ConnectionState=state) do
+	def clean_session(:timeout, ConnectionState[]=state) do
 		# TODO: Publish Will Message if required
 		# TODO: call unsubscribe all topics
 		{:next_state, :clean_disconnect, state}
 	end
-	def clean_session(:disconnect, ConnectionState=state) do
+	def clean_session(:disconnect, ConnectionState[]=state) do
 		# TODO: call unsubscribe all topics
 		{:next_state, :clean_disconnect, state}
 	end
