@@ -30,6 +30,8 @@ defmodule Mqttex do
 		client_id: "",
 		user_name: "",
 		password: "",
+		keep_alive: :infinity, # or the keep-alive in milliseconds (=1000*mqtt-keep-alive)
+		keep_alive_server: :infinity, # or 1.5 * keep-alive in milliseconds (=1500*mqtt-keep-alive)
 		last_will: false,
 		will_qos: :fire_and_forget,
 		will_retain: false,
