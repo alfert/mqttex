@@ -27,3 +27,12 @@ connections. It also handles the QoQ workflow with each client connection.
 The supervised processes for connections and for topics are dynamically by nature. For both 
 a separate supervisor exists. 
 
+## The MQTT state machine
+
+### Server Side 
+
+The several states are shown here the statechart: 
+
+![FSM of the Server Side](../mqtt-server-fsm.dot.png)
+
+### Client Side

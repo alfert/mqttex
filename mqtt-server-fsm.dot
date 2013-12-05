@@ -1,0 +1,29 @@
+/* Graph of the FSM of the MQTT Server */
+
+digraph "Server" {
+
+start [label="Start", shape=circle, style=bold, peripheries=2];
+node [shape=oval];
+
+clean [label="Clean Session"];
+persistent [label="Persistent Session"];
+c_lost [label="Clean \nLast Will"];
+p_lost [label="Persistent \nLast Will"];
+clean_dis [label="Clean \nDisconnect"];
+persitent_dis [label="Persistent \nDisconnect"];
+
+start -> clean [label="connect \nclean"];
+clean_dis -> clean [label="connect \nclean"];
+clean_dis -> persistent [label="connect \npersistent"];
+clean -> clean_dis [label="disconnect"]
+clean -> c_lost [label ="timeout"];
+c_lost -> clean_dis;
+clean -> clean [label="ping/publish/subscribe/unsubscribe"];
+
+start -> persistent [label="connect \npersistent"]
+persistent -> persitent_dis[label="disconnect"];
+persitent_dis -> clean[label="connect \nclean"];
+persistent -> p_lost [label="timeout"];
+p_lost -> persitent_dis;
+persistent -> persistent [label="ping/publish/subscribe/unsubscribe"];
+}
