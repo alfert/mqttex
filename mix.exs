@@ -5,7 +5,10 @@ defmodule Mqttex.Mixfile do
     [ app: :mqttex,
       version: "0.0.1",
       elixir: "~> 0.11.2",
-      deps: deps ]
+      deps: deps,
+      dialyzer: [paths: ["_build/shared/lib/mqttex/ebin"] ], 
+      docs: [readme: true]
+    ]
   end
 
   # Configuration for the OTP application
@@ -23,7 +26,11 @@ defmodule Mqttex.Mixfile do
       { :properex, ">= 0.1", [github: "yrashk/properex"]},
       # LagerEx ist too old and does not compile in version 0.1
       # {:lagerex,"0.1", [github: "yrashk/lagerex", tag: "0.1"]},
-      {:ranch,"0.9.0", [github: "extend/ranch", tag: "0.9.0"]}
+      {:ranch,"0.9.0", [github: "extend/ranch", tag: "0.9.0"]},
+      {:dialyxir,"0.2.2",[github: "jeremyjh/dialyxir"]},
+      # Generate documentation with ex_doc
+      { :ex_doc, github: "elixir-lang/ex_doc" }
+
     ]
   end
 end
