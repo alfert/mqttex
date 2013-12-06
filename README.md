@@ -36,3 +36,14 @@ The several states are shown here the statechart:
 ![FSM of the Server Side](../mqtt-server-fsm.dot.png)
 
 ### Client Side
+
+## ToDos
+
+### Specific todos
+* verify connections
+* document client side approach
+
+### Generic todos
+* add more unit tests
+* add statemachine tests with Proper
+
