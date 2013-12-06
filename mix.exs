@@ -13,7 +13,10 @@ defmodule Mqttex.Mixfile do
 
   # Configuration for the OTP application
   def application do
-    [mod: { Mqttex, [] }]
+    [ 
+      mod: { Mqttex, [] },
+      applications: [:kernel, :stdlib, :sasl, :elixir]
+    ]
   end
 
   # Returns the list of dependencies in the format:
