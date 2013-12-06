@@ -2,6 +2,8 @@
 
 This a MQTT server and client written in Elixir. 
 
+[![Build Status](https://travis-ci.org/[alfert]/[mqttex].png)](https://travis-ci.org/[alfert]/[mqttex])
+
 ## Design
 
 ### Connections
