@@ -31,5 +31,28 @@ defmodule MqttexTest do
 		assert Mqttex.Server.stop(server) == :ok
 	end
 
+	test "disconnect server and ping" do
+		connection = Mqttex.Connection.new [client_id: "MqttexTest"]
+		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
+		assert(is_pid(server))
+
+		dis = Mqttex.DisconnectMsg.new
+		assert Mqttex.Server.disconnect(server, dis) == :ok
+
+		ping = Mqttex.PingReqMsg.new	
+		# IO.puts(try do
+		# 	Mqttex.Server.ping(server, ping)
+		# catch
+		# 	:exit, code -> "Exited with code #{inspect code}"
+		# 	:throw, value -> "throw called with #{inspect value}"
+		# 	what, value -> "Caught #{inspect what} with #{inspect value}"
+		# end)
+		assert catch_exit(Mqttex.Server.ping(server, ping)) == {:timeout,  
+			{:gen_fsm, :sync_send_event, [server, :ping]}}
+
+
+		assert Mqttex.Server.stop(server) == :ok
+	end
+
 
 end

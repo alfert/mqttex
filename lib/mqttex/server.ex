@@ -30,7 +30,7 @@ defmodule Mqttex.Server do
 		end
 	end
 
-	@doc "Reconnects an existing server with a new connection"	
+	# Reconnects an existing server with a new connection
 	defp reconnect(server, connection, client_proc) do
 		case :gen_fsm.sync_send_event(server, {:reconnect, connection, client_proc}) do
 			{:ok, pid}       -> {Mqttex.ConnAckMsg.new([status: :ok]), pid}
@@ -86,14 +86,18 @@ defmodule Mqttex.Server do
 	def clean_session(:timeout, ConnectionState[]=state) do
 		# TODO: Publish Will Message if required
 		# TODO: call unsubscribe all topics
+
+		# no timeout here, we wait forever
 		{:next_state, :clean_disconnect, state}
 	end
 	def clean_session(:disconnect, ConnectionState[]=state) do
 		# TODO: call unsubscribe all topics
+		
+		# no timeout here, we wait forever
 		{:next_state, :clean_disconnect, state}
 	end
 	
-	# Reconnection with reply
+	@doc "Reconnection with reply"
 	def clean_disconnect({:reconnect, connection, client_proc}, _from, ConnectionState[]=state) do
 		{reply, s, new_state_data} = case check_connection(connection) do
 			:ok -> {{:ok, self}, :clean_session, 
@@ -102,8 +106,19 @@ defmodule Mqttex.Server do
 		end
 		{:reply, reply, s, new_state_data, new_state_data.connection.keep_alive_server}
 	end
+	def clean_disconnect(any_msg, _from, ConnectionState[]=state) do
+		:error_logger.error_msg("Disconnected Server #{state.connection.client_id} got message #{inspect any_msg}")
+		{:next_state, :clean_disconnect, state}
+	end
+	
 
-	@doc "The stop event is only allowed if "
+	@doc """
+	The stop event is only allowed if we have no subscriptions: there is no relevant
+	state data in the server available. The only bad thing that can happen is another 
+	non-connecting message from the client, for which no server exists any longer. However,
+	since the client-socket-process is linked to the server, the terminating server should
+	send the socket process an `EXIT` message resuling in an shutdown of the socket as well.
+	"""
 	def handle_event(:stop, _state, ConnectionState[subscriptions: []] = state_data) do
 		{:stop, :normal, state_data}
 	end
