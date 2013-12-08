@@ -24,11 +24,9 @@ defmodule Mqttex.Server do
 	"""
 	@spec connect(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def connect(Mqttex.Connection[] = connection, client_proc // self()) do
-		value = case :global.whereis_name(connection.client_id) do
-			:undefined -> 
-				Mqttex.Supervisor.start_server(connection, client_proc)
-				# start_link(connection, client_proc)
-			pid        -> reconnect(pid, connection, client_proc)
+		value = case Mqttex.Supervisor.start_server(connection, client_proc) do
+			{:error, {:already_started, pid}} -> reconnect(pid, connection, client_proc)
+			any -> any
 		end
 		case value do 
 			{:ok, pid}       -> {Mqttex.ConnAckMsg.new([status: :ok]), pid}

@@ -1,7 +1,11 @@
 defmodule MqttexTest do
 	use ExUnit.Case
 
-	test "a mqttx server is up and running" do
+
+	## Problem: whereis könnte ein timingproblem liefern ==> direkt neu starten und dann
+	##          mit :already_running umgehen
+
+	test "A mqttx server is up and running" do
 		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
 		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
 		assert(is_pid(server))
@@ -9,8 +13,8 @@ defmodule MqttexTest do
 		assert Mqttex.Server.stop(server) == :ok
 	end
 
-	test "start server and ping it" do
-		connection = Mqttex.Connection.new [client_id: "MqttexTest B"]
+	test "B start server and ping it" do
+		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
 		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
 		assert(is_pid(server))
 
@@ -20,8 +24,8 @@ defmodule MqttexTest do
 		assert Mqttex.Server.stop(server) == :ok
 	end
 
-	test "start server and reconnect" do
-		connection = Mqttex.Connection.new [client_id: "MqttexTest C"]
+	test "C start server and reconnect" do
+		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
 		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
 		assert(is_pid(server))
 
@@ -35,8 +39,8 @@ defmodule MqttexTest do
 		assert Mqttex.Server.stop(server) == :ok
 	end
 
-	test "disconnect server and ping" do
-		connection = Mqttex.Connection.new [client_id: "MqttexTest D"]
+	test "D disconnect server and ping" do
+		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
 		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
 		assert(is_pid(server))
 
