@@ -24,27 +24,30 @@ defmodule Mqttex.Server do
 	"""
 	@spec connect(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def connect(Mqttex.Connection[] = connection, client_proc // self()) do
-		case :global.whereis_name(connection.client_id) do
-			:undefined -> start_link(connection, client_proc)
-			pid -> reconnect(pid, connection, client_proc)
+		value = case :global.whereis_name(connection.client_id) do
+			:undefined -> 
+				Mqttex.Supervisor.start_server(connection, client_proc)
+				# start_link(connection, client_proc)
+			pid        -> reconnect(pid, connection, client_proc)
+		end
+		case value do 
+			{:ok, pid}       -> {Mqttex.ConnAckMsg.new([status: :ok]), pid}
+			{:error, reason} -> Mqttex.ConnAckMsg.new [status: reason]
 		end
 	end
 
 	# Reconnects an existing server with a new connection
 	defp reconnect(server, connection, client_proc) do
-		case :gen_fsm.sync_send_event(server, {:reconnect, connection, client_proc}) do
-			{:ok, pid}       -> {Mqttex.ConnAckMsg.new([status: :ok]), pid}
-			{:error, reason} -> Mqttex.ConnAckMsg.new [status: reason]
-		end
+		:gen_fsm.sync_send_event(server, {:reconnect, connection, client_proc})
 	end
 	
+	
+
 	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def start_link( Mqttex.Connection[] = connection, client_proc // self()) do
-		case :gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc},
-									[timeout: connection.keep_alive_server]) do
-			{:ok, pid}       -> {Mqttex.ConnAckMsg.new([status: :ok]), pid}
-			{:error, reason} -> Mqttex.ConnAckMsg.new [status: reason]
-		end
+		IO.puts "#{__MODULE__}.start_link for #{connection.client_id}"
+		:gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc},
+									[timeout: connection.keep_alive_server])
 	end
 
 	@spec ping(pid, Mqttex.PingReqMsg.t) :: Mqttex.PingRespMsg

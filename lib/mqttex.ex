@@ -6,6 +6,10 @@ defmodule Mqttex do
   	def start(_type, _args) do
   		Mqttex.Supervisor.start_link
   	end
+  	def start() do
+  		start(:none, :none)  		
+  	end
+  	
 
   	@type qos_type :: :fire_and_forget | :ack_delivery | :assured_delivery
 	@type message_type :: :connect | :conn_ack | :publish | :pub_ack |
