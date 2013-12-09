@@ -5,10 +5,7 @@ defmodule Mqttex.Supervisor do
     @supervisor __MODULE__
 
     def start_link do
-        IO.puts "#{@supervisor} is starting up"
-        v = :supervisor.start_link({:local, @supervisor}, __MODULE__, [])
-        IO.puts "Return is #{inspect v}"
-        v
+        :supervisor.start_link({:local, @supervisor}, __MODULE__, [])
     end
 
     def init([]) do
@@ -29,10 +26,7 @@ defmodule Mqttex.Supervisor do
     the supervisor hierarchy
     """
     def start_server(Mqttex.Connection[] = connection, client_proc) do
-        IO.puts "start server for #{connection.client_id}"
-        # server = worker Mqttex.Server, [connection, client_proc], restart: :transient
-        # child = supervise [server], strategy: :simple_one_for_one
-        IO.puts "Supervisor process is: #{inspect :erlang.whereis(@supervisor)}"
+        # IO.puts "start server for #{connection.client_id}"
         :supervisor.start_child @supervisor, [connection, client_proc]
     end
   
