@@ -34,20 +34,7 @@ defmodule Mqttex.Server do
 		end
 	end
 
-	# Reconnects an existing server with a new connection
-	defp reconnect(server, connection, client_proc) do
-		:gen_fsm.sync_send_event(server, {:reconnect, connection, client_proc})
-	end
 	
-	
-
-	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
-	def start_link( Mqttex.Connection[] = connection, client_proc // self()) do
-		IO.puts "#{__MODULE__}.start_link for #{connection.client_id}"
-		:gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc},
-									[timeout: connection.keep_alive_server])
-	end
-
 	@spec ping(pid, Mqttex.PingReqMsg.t) :: Mqttex.PingRespMsg
 	def ping(server, Mqttex.PingReqMsg[] = _ping_req) do
 		:pong =  :gen_fsm.sync_send_event(server, :ping)
@@ -65,8 +52,19 @@ defmodule Mqttex.Server do
 		:gen_fsm.send_all_state_event(server, :stop)
 	end
 	
+	@spec subscribe(pid, Mqttex.SubscribeMsg.t) :: Mqttex.SubAckMsg
+	def subscribe(server, Mqttex.SubscribeMsg[]=topics) do
+		:gen_fsm.sync_send_event(server, {:subscribe, topics})
+	end
+	
+	@spec unsubscribe(pid, Mqttex.UnSubscribeMsg.t) :: Mqttex.SubAckMsg
+	def unsubscribe(server, Mqttex.UnSubscribeMsg[]=topics) do
+		:gen_fsm.sync_send_event(server, {:unsubscribe, topics})
+	end
 
+	#############################################################################################
 	#### Internal functions
+	#############################################################################################
 
 	@doc "Initializes the FSM"
 	def init({connection, client_proc}) do
@@ -78,9 +76,33 @@ defmodule Mqttex.Server do
 			connection.keep_alive_server }
 	end
 
+	# Reconnects an existing server with a new connection
+	defp reconnect(server, connection, client_proc) do
+		:gen_fsm.sync_send_event(server, {:reconnect, connection, client_proc})
+	end
+	
+	
+
+	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
+	def start_link( Mqttex.Connection[] = connection, client_proc // self()) do
+		IO.puts "#{__MODULE__}.start_link for #{connection.client_id}"
+		:gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc},
+									[timeout: connection.keep_alive_server])
+	end
+
+	#############################################################################################
+	#### Event/State Handling
+	#############################################################################################
+
 	@doc "Events in state `clean_session` with replies"
 	def clean_session(:ping, _from, ConnectionState[]=state) do
 		{:reply, :pong, :clean_session, state, state.connection.keep_alive_server}
+	end
+	def clean_session({:subscribe, topics}, from, ConnectionState[]=state) do
+		# subscribe to topics at the subscription server
+		#   -> the server adds all existing topics 
+	end
+	def clean_session({:unsubscribe, topics}, from, ConnectionState[]=state) do
 	end
 
 	@doc "Event in state `clean_session` without a reply"
