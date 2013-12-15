@@ -62,6 +62,10 @@ defmodule Mqttex.Server do
 		:gen_fsm.sync_send_event(server, {:unsubscribe, topics})
 	end
 
+	@doc "Sends a message from the server to client, ie a message from a topic"
+	def send_msg(session, content, qos) do
+		:gen_fsm.send_event(session, {:send, content, qos})
+	end
 	#############################################################################################
 	#### Internal functions
 	#############################################################################################
@@ -119,6 +123,15 @@ defmodule Mqttex.Server do
 		# no timeout here, we wait forever
 		{:next_state, :clean_disconnect, state}
 	end
+	def clean_session({:send_msg, content, qos, topic}, ConnectionState[client_proc: client]=state) do
+		# TODO: handle other qos situations
+
+		# Build a proper Publish-Message and send it to our client process
+		pubmsg = PublishMsg.new[topic: topic, message: content, qos: qos]
+		client_proc <- pubmsg
+		{:next_state, :clean_session, state}
+	end
+	
 	
 	@doc "Reconnection with reply"
 	def clean_disconnect({:reconnect, connection, client_proc}, _from, ConnectionState[]=state) do
