@@ -35,19 +35,23 @@ defmodule Mqttex.TopicManager do
 	end
 	
 	def start_link() do
-		:gen_server.start_link({:local, @my_name}, [])
+		:gen_server.start_link({:local, @my_name}, __MODULE__, [], [])
 	end
 	
 	#################################################################################
 	#### Call Backs
 	#################################################################################
-	def init() do
+	def init([]) do
+		# IO.puts "Init of TopicManager"
 		{:ok, State.new}
 	end
 
 	def handle_call({:start_topic, Mqttex.PublishMsg[topic: topic] = msg, from}) do
 		# ignore any problems during start, in particular :already_started
-		# because we call the topic server via its name. Any 
+		# because we call the topic server via its name. Any problems happening
+		# from concurrent starts of the topics are resolved here: after start_topic
+		# the topic must be there. Otherwise we have a severe problem to be solved
+		# somewhere else.
 		Mqttex.SubTopic.start_topic(topic) 
 		Mqttex.Topic.publish(msg, from)
 	end
