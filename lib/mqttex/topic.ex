@@ -6,11 +6,11 @@ defmodule Mqttex.Topic do
 
 	defrecord State, topic: "", subscriptions: []
 
-	def start_link(topic) do
-		:gen_server.start_link(topic)
+	def start_link(topic) when is_binary(topic) do
+		:gen_server.start_link(topic_server(topic), __MODULE__,  topic, [])
 	end
 	
-	def publish(Mqttex.PublishMsg[] msg, client) do
+	def publish(Mqttex.PublishMsg[] = msg, client) do
 		:gen_server.call(topic_server(msg), {:publish, msg, client})
 	end
 	
@@ -18,7 +18,7 @@ defmodule Mqttex.Topic do
 	Subscribes a `client` to the `topic` with requested `qos`. 
 	Returns the granted qos.
 	"""
-	@spec subscribe(binary, qos_type, binary) :: qos_type
+	@spec subscribe(binary, Mqttex.qos_type, binary) :: Mqttex.qos_type
 	def subscribe(topic, qos, client) do
 		:gen_server.call(topic_server(topic), {:subscribe, client, qos})
 	end
@@ -50,8 +50,8 @@ defmodule Mqttex.Topic do
 	### Callbacks
 	####################################################################################
 
-	def handle_call({:publish, Mqttex.PublishMsg[message: content] _msg, client}, 
-				    from, State[subscriptions: subs] = _state) do
+	def handle_call({:publish, Mqttex.PublishMsg[message: content] = _msg, client}, 
+				    from, State[subscriptions: subs] = state) do
 		Enum.each(subs, fn({session, qos}) -> send_msg(session, content, qos) end)
 		{:reply, :ok, state}
 	end

@@ -14,7 +14,7 @@ defmodule Mqttex.TopicManager do
 	Publishes a messages, starting 
 	"""
 	@spec publish(Mqttex.PublishMsg.t, binary) :: :ok
-	def publish(msg, from) do
+	def publish(Mqttex.PublishMsg[] = msg, from) do
 		# if the topic exists, publish it directly without 
 		# interfering with the topic manager.
 		try do
@@ -26,12 +26,12 @@ defmodule Mqttex.TopicManager do
 		end
 	end
 	
-	def start_topic(msg, from) do
+	def start_topic(Mqttex.PublishMsg[] = msg, from) do
 		:gen_server.call(@my_name, {:start_topic, msg, from})
 	end
 	
-	def subscribe do
-		
+	def subscribe(Mqttex.SubscribeMsg[] = topics, from) do
+		:gen_server.call(@my_name, {:subscribe, topics, from})
 	end
 	
 	def start_link() do
@@ -46,7 +46,7 @@ defmodule Mqttex.TopicManager do
 		{:ok, State.new}
 	end
 
-	def handle_call({:start_topic, Mqttex.PublishMsg[topic: topic] = msg, from}) do
+	def handle_call({:start_topic, Mqttex.PublishMsg[topic: topic] = msg, from}, client, state) do
 		# ignore any problems during start, in particular :already_started
 		# because we call the topic server via its name. Any problems happening
 		# from concurrent starts of the topics are resolved here: after start_topic
@@ -55,7 +55,14 @@ defmodule Mqttex.TopicManager do
 		Mqttex.SubTopic.start_topic(topic) 
 		Mqttex.Topic.publish(msg, from)
 	end
+	def handle_call({:subscribe, Mqttex.SubscribeMsg[] = topics, from}, client, state) do
+		# TODO
+	end
 	
+	
+	def subscribe_to({topic, qos}, from) do
+		Mqttex.Topic.subscribe(topic, qos, from)
+	end
 	
 
 end

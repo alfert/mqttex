@@ -25,7 +25,7 @@ defmodule Mqttex.SupTopic do
     Creates a child specification for dynamically attaching a topic to 
     the supervisor hierarchy
     """
-    def start_topic(topic) do
+    def start_topic(topic) when is_binary(topic) do
         # IO.puts "start topic for #{topic}"
         :supervisor.start_child @supervisor, [topic]
     end

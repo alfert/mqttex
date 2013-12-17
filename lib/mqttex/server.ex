@@ -24,7 +24,7 @@ defmodule Mqttex.Server do
 	"""
 	@spec connect(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def connect(Mqttex.Connection[] = connection, client_proc // self()) do
-		value = case Mqttex.Supervisor.start_server(connection, client_proc) do
+		value = case Mqttex.SupServer.start_server(connection, client_proc) do
 			{:error, {:already_started, pid}} -> reconnect(pid, connection, client_proc)
 			any -> any
 		end
@@ -127,8 +127,8 @@ defmodule Mqttex.Server do
 		# TODO: handle other qos situations
 
 		# Build a proper Publish-Message and send it to our client process
-		pubmsg = PublishMsg.new[topic: topic, message: content, qos: qos]
-		client_proc <- pubmsg
+		pubmsg = PublishMsg.new [topic: topic, message: content, qos: qos]
+		client <- pubmsg
 		{:next_state, :clean_session, state}
 	end
 	
