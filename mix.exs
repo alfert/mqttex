@@ -4,7 +4,7 @@ defmodule Mqttex.Mixfile do
   def project do
     [ app: :mqttex,
       version: "0.0.1",
-      elixir: "~> 0.11.2",
+      elixir: "~> 0.12.0",
       deps: deps,
       dialyzer: [paths: ["_build/shared/lib/mqttex/ebin"] ], 
       docs: [readme: true]
