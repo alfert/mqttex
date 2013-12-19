@@ -1,8 +1,9 @@
 defmodule Mqttex.Topic do
 	
 	@moduledoc """
-	
+	Implements a single topic with a set of session subscriptions. 
 	"""
+	use GenServer.Behaviour
 
 	defrecord State, topic: "", subscriptions: []
 
