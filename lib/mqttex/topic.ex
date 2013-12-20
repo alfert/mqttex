@@ -67,19 +67,17 @@ defmodule Mqttex.Topic do
 		new_state = state.subscriptions new_subs
 		{:reply, :ok, new_state}
 	end
-
+	def handle_call({:unsubscribe, client, qos}, _from, State[subscriptions: subs] = state) do
+		new_state = state.subscriptions [{client, qos} | subs]
+		{:reply, :fire_and_forget, new_state}
+	end
+	
 	####################################################################################
 	### Internal Implementation
 	####################################################################################
 
 	def send_msg(session, content, :fire_and_forget) do
 		Mqttex.Server.send_msg(session, content, :fire_and_forget)
-	end
-	
-
-	def handle_call({:unsubscribe, client, qos}, _from, State[subscriptions: subs] = state) do
-		new_state = state.subscriptions [{client, qos} | subs]
-		{:reply, :fire_and_forget, new_state}
 	end
 
 end
