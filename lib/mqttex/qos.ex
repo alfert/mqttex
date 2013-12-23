@@ -5,19 +5,21 @@ defmodule Mqttex.SenderBehaviour do
 
 	use Behaviour
 
+	@type message_type :: Mqttex.PublishMsg.t | Mqttex.SubscribeMsg.t | Mqttex.UnSubscribeMsg.t
+
 	@doc """
 	Sends a message and returns the current timeout for an answer in milliseconds. 
 	The first parameter is either a `pid` or an named process references for a genserver.
 	"""
-	defcallback send_msg(term, Mqttex.PublishMsg.t) :: integer
+	defcallback send_msg(term, message_type) :: integer
 
 	@doc """
-	Call after completing the protocol. Sends the value of protocol (usually an `:ok`),
-	the protocol process is usually dead after this call.
+	Call after completing the protocol. Sends the value of protocol (usually an `:ok`) as third
+	parameter. The protocol process is usually dead after this call.
 
 	The first parameter is either a `pid` or an named process references for a genserver.
 	"""
-	defcallback completed(term, pid, term) :: :ok
+	defcallback send_complete(term, Mqttex.PubCompMsg.t) :: :ok
 
 	@doc """
 	Sends a release message and returns the current timeout for an answer in milliseconds. 
@@ -34,15 +36,14 @@ defmodule Mqttex.Qos0Sender do
 	"""
 
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
-	def start(Mqttex.PublishMsg[] = msg, mod, sender) do
-		ok = receive do
-			:go -> send_msg(msg, mod, sender)
+	def start(Mqttex.PublishMsg[] = msg, queue_mod, sender) do
+		receive do
+			:go -> send_msg(msg, queue_mod, sender)
 		end
-		mod.completed(sender, self, ok)
 	end
 	
-	def send_msg(msg, mod, sender) do
-		mod.send_msg(sender, msg)
+	def send_msg(msg, queue_mod, sender) do
+		queue_mod.send_msg(sender, msg)
 		:ok
 	end
 end
@@ -56,22 +57,28 @@ defmodule Mqttex.QoS1Sender do
 
 	The behaviour or the protocol for MQTT QoS 1, ie. At Least Once, is realized as a
 	state machine with interleaving functions. This works because we have tail-call-optimization 
-	in Erlang and Elixir.
+	in Erlang and Elixir.	
 	"""
 
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
-	def start(Mqttex.PublishMsg[] = msg, mod, sender) do
+	def start(Mqttex.SubscribeMsg[msg_id: id] = msg, mod, sender), do: start(msg, id, mod, sender)
+	def start(Mqttex.UnSubscribeMsg[msg_id: id] = msg, mod, sender), do: start(msg, id, mod, sender)
+	def start(Mqttex.PublishMsg[msg_id: id] = msg, mod, sender), do: start(msg, id, mod, sender)
+
+	defp start(msg, id, mod, sender) do
 		receive do
-			:go -> send_msg(msg, mod, sender, :first)
+			:go -> send_msg(msg, id, mod, sender, :first)
 		end
 	end
 	
-	def send_msg(Mqttex.PublishMsg[msg_id: id] = msg, mod, sender, duplicate) do
+	def send_msg(msg, id, mod, sender, duplicate) do
 		m = msg.header.duplicate(duplicate == :second)
 		timeout = mod.send_msg(sender, msg)
 		receive do
-			Mqttex.PubAckMsg[msg_id: id] -> :ok
-			after timeout                -> send_msg(msg, mod, sender, :second)
+			Mqttex.PubAckMsg[msg_id: ^id] -> :ok
+			Mqttex.SubAckMsg[msg_id: ^id] -> :ok
+			Mqttex.UnSubAckMsg[msg_id: ^id] -> :ok
+			after timeout                -> send_msg(msg, id, mod, sender, :second)
 		end
 	end
 
