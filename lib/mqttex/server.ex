@@ -13,7 +13,7 @@ defmodule Mqttex.Server do
 	use GenFSM.Behaviour
 	@my_name __MODULE__
 
-	defrecord ConnectionState, connection: :none, client_proc: :none, subscriptions: []
+	defrecord ConnectionState, connection: :none, client_proc: :none, out_queue: :none, subscriptions: []
 
 	#### API of the server
 	@doc """
@@ -63,8 +63,8 @@ defmodule Mqttex.Server do
 	end
 
 	@doc "Sends a message from the server to client, ie a message from a topic"
-	def send_msg(session, content, qos) do
-		:gen_fsm.send_event(session, {:send, content, qos})
+	def send_msg(session, content) do
+		:gen_fsm.send_event(session, {:send, content})
 	end
 	#############################################################################################
 	#### Internal functions
@@ -75,8 +75,10 @@ defmodule Mqttex.Server do
 		# TODO: check that the connection data is proper. Invalidity results in {:stop, error_code}, 
 		# where error_code is of type conn_ack_type
 		IO.puts "#{__MODULE__}.init"
+		queue = Mqttex.OutboundQueue.start_link(self, __MODULE__)
 		{:ok, :clean_session, 
-			ConnectionState.new([connection: connection, client_proc: client_proc]), 
+			ConnectionState.new([connection: connection, client_proc: client_proc, 
+				out_queue: queue]), 
 			connection.keep_alive_server }
 	end
 
@@ -123,12 +125,8 @@ defmodule Mqttex.Server do
 		# no timeout here, we wait forever
 		{:next_state, :clean_disconnect, state}
 	end
-	def clean_session({:send_msg, content, qos, topic}, ConnectionState[client_proc: client]=state) do
-		# TODO: handle other qos situations
-
-		# Build a proper Publish-Message and send it to our client process
-		pubmsg = PublishMsg.new [topic: topic, message: content, qos: qos]
-		client <- pubmsg
+	def clean_session({:send_msg, content}, ConnectionState[client_proc: client]=state) do
+		client <- content
 		{:next_state, :clean_session, state}
 	end
 	
