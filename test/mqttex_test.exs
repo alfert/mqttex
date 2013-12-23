@@ -1,10 +1,6 @@
 defmodule MqttexTest do
 	use ExUnit.Case
 
-
-	## Problem: whereis könnte ein timingproblem liefern ==> direkt neu starten und dann
-	##          mit :already_running umgehen
-
 	test "A mqttx server is up and running" do
 		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
 		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
