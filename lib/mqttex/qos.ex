@@ -27,6 +27,56 @@ defmodule Mqttex.SenderBehaviour do
 	"""
 	defcallback send_release(term, Mqttex.PubRelMsg.t) :: integer
 
+	@doc """
+	Sends a received message and returns the current timeout for an answer in milliseconds. 
+	The first parameter is either a `pid` or an named process references for a genserver.
+	"""
+	defcallback send_release(term, Mqttex.PubRecMsg.t) :: integer
+
+
+	# Emtpy default implementations
+	defmacro __using__(_) do
+    	quote location: :keep do
+    		def send_msg(_queue, msg) do
+    			:error_logger.error_msg("#{__MODULE__}.send_msg(#{inspect queue}, #{inspect msg}")
+    		end
+
+    		def send_complete(queue, msg) do
+    			:error_logger.error_msg("#{__MODULE__}.send_complete(#{inspect queue}, #{inspect msg}")
+    		end
+
+    		def send_release(queue, msg) do
+    			:error_logger.error_msg("#{__MODULE__}.send_release(#{inspect queue}, #{inspect msg}")
+    		end
+
+    		def send_received(queue, msg) do
+    			:error_logger.error_msg("#{__MODULE__}.send_received(#{inspect queue}, #{inspect msg}")
+    		end
+
+ 	    	defoverridable [send_msg: 2, send_complete: 2, send_release: 2, send_received: 2]
+    	end
+    end
+end
+
+defmodule ReceiverBehaviour do
+	@moduledoc """
+	This is a behaviour for the receiver part of the qos transfers. It is not the client-side	
+	interface.
+	"""
+	use Behaviour
+
+	@doc """
+	Message callback: Sends the message to given pid, when a message arrives and qos is completed
+	"""
+	defcallback onMessage(pid) :: :ok
+
+	defmacro __using__(_) do
+		quote location: :keep do
+			def onMessage(pid) do
+				error_logger.error_msg("Unimplemented onMessage")
+			end
+		end
+	end
 end
 
 defmodule Mqttex.Qos0Sender do
@@ -94,6 +144,7 @@ defmodule Mqttex.QoS1Receiver do
 
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
 	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
+		mod.on_message(receiver, msg)
 		send_ack(msg.msg_id, mod, receiver)
 	end
 
@@ -125,12 +176,14 @@ defmodule Mqttex.QoS2Sender do
 	arrives within the timout, the process advances to releasing the message 
 	(see `send_release`).
 	"""
-	def send_msg(Mqttex.PublishMsg[msg_id: msg_id] = msg, mod, sender, duplicate) do
-		m = msg.header.duplicate(duplicate == :second)
+	def send_msg(Mqttex.PublishMsg[msg_id: msg_id, header: h] = msg, mod, sender, duplicate) do
+		new_h = h.duplicate(duplicate == :second)
+		m = msg.header(new_h)
 		timeout = mod.send_msg(sender, m)
 		receive do
-			Mqttex.PubRecMsg[msg_id: msg_id] -> send_release(msg_id, mod, sender, :first)
-			after timeout                    -> send_msg(msg, mod, sender, :second)
+			Mqttex.PubRecMsg[msg_id: ^msg_id] -> send_release(msg_id, mod, sender, :first)
+			any						 		  -> :error_logger.error_msg("Strange message: #{inspect any}")
+			after timeout                     -> send_msg(msg, mod, sender, :second)
 		end
 	end
 
@@ -140,12 +193,12 @@ defmodule Mqttex.QoS2Sender do
 	message until a response arrives.
 	"""
 	def send_release(msg_id, mod, sender, duplicate) do
-		header = Mqttex.FixedHeader[duplicate: duplicate == :second]
+		header = Mqttex.FixedHeader[duplicate: duplicate == :second, qos: :at_least_once]
 		m = Mqttex.PubRelMsg[header: header, msg_id: msg_id]
 		timeout = mod.send_release(sender, m)
 		receive do
-			Mqttex.PubCompMsg[msg_id: msg_id] -> :ok
-			after timeout                     -> send_release(msg_id, mod, sender, :second)
+			Mqttex.PubCompMsg[msg_id: ^msg_id] -> :ok
+			after timeout                      -> send_release(msg_id, mod, sender, :second)
 		end
 	end
 
@@ -159,17 +212,16 @@ defmodule Mqttex.QoS2Receiver do
 
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
 	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
-		receive do
-			Mqttex.PublishMsg[] = msg -> send_received(msg.msg_id, mod, receiver, :first)
-		end
+		mod.on_message(receiver, msg)
+		send_received(msg.msg_id, mod, receiver, :first)
 	end
 
 	def send_received(msg_id, mod, receiver, duplicate) do
 		received = Mqttex.PubRecMsg[msg_id: msg_id]
 		timeout = mod.send_received(receiver, received)
 		receive do
-			Mqttex.PublishMsg[] = msg -> send_received(msg_id, mod, receiver, :second)
 			Mqttex.PubRelMsg[msg_id: msg_id] -> send_complete(msg_id, mod, receiver, :first)
+			Mqttex.PublishMsg[] = msg -> send_received(msg_id, mod, receiver, :second)
 			after timeout -> send_received(msg_id, mod, receiver, :second)
 		end
 	end
