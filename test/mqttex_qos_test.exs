@@ -10,7 +10,7 @@ defmodule MqttexQosTest do
 		assert_receive(msg)
 	end
 
-	test "At Least Once - one time, good case" do
+	def setupChannels(msg, final_receiver_pid // self) do
 		IO.puts "Setting up channels"
 		chIn  = spawn_link(__MODULE__, :channel, [])
 		chOut = spawn_link(__MODULE__, :channel, [])
@@ -24,13 +24,17 @@ defmodule MqttexQosTest do
 		chOut <- {:register, receiver_pid}
 
 		# we self want to receive messages receiver by the adapter
-		MqttextSimpleSenderAdapter.register_receiver(receiver_pid, self)
+		MqttextSimpleSenderAdapter.register_receiver(receiver_pid, final_receiver_pid)
 
 		# Here we go!
 		IO.puts "Here we go!"
-		msg = makePublishMsg("Topic ABO", "ABO Message", :at_most_once, 70)
 		senderProtocol = MqttextSimpleSenderAdapter.publish(adapter_pid, msg)
 		senderProtocol <- :go
+	end
+
+	test "At Least Once - one time, good case" do
+		msg = makePublishMsg("Topic ALO", "ALO Message", :at_least_once, 35)
+		setupChannels(msg)
 
 		receive do
 			Mqttex.PubAckMsg[] = ack -> assert ack.msg_id == msg.msg_id
@@ -43,26 +47,8 @@ defmodule MqttexQosTest do
 	end
 
 	test "At Most Once - one time, good case" do
-		IO.puts "Setting up channels"
-		chIn  = spawn_link(__MODULE__, :channel, [])
-		chOut = spawn_link(__MODULE__, :channel, [])
-
-		IO.puts "Setting up Sender Adapter"
-		adapter_pid    = spawn_link(MqttextSimpleSenderAdapter, :start, [chOut])
-		chIn <- {:register, adapter_pid}
-
-		IO.puts "Setting up Receiver Adapter"
-		receiver_pid = spawn_link(MqttextSimpleSenderAdapter, :start_receiver, [chIn])
-		chOut <- {:register, receiver_pid}
-
-		# we self want to receive messages receiver by the adapter
-		MqttextSimpleSenderAdapter.register_receiver(receiver_pid, self)
-
-		# Here we go!
-		IO.puts "Here we go!"
 		msg = makePublishMsg("Topic ABO", "ABO Message", :at_most_once, 70)
-		senderProtocol = MqttextSimpleSenderAdapter.publish(adapter_pid, msg)
-		senderProtocol <- :go
+		setupChannels(msg)
 
 		receive do
 			Mqttex.PubCompMsg[] = ack -> assert ack.msg_id == msg.msg_id
