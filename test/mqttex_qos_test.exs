@@ -10,28 +10,7 @@ defmodule MqttexQosTest do
 		assert_receive(msg)
 	end
 
-	def setupChannels(msg, final_receiver_pid // self) do
-		IO.puts "Setting up channels"
-		chIn  = spawn_link(__MODULE__, :channel, [])
-		chOut = spawn_link(__MODULE__, :channel, [])
-
-		IO.puts "Setting up Sender Adapter"
-		adapter_pid    = spawn_link(MqttextSimpleSenderAdapter, :start, [chOut])
-		chIn <- {:register, adapter_pid}
-
-		IO.puts "Setting up Receiver Adapter"
-		receiver_pid = spawn_link(MqttextSimpleSenderAdapter, :start_receiver, [chIn])
-		chOut <- {:register, receiver_pid}
-
-		# we self want to receive messages receiver by the adapter
-		MqttextSimpleSenderAdapter.register_receiver(receiver_pid, final_receiver_pid)
-
-		# Here we go!
-		IO.puts "Here we go!"
-		senderProtocol = MqttextSimpleSenderAdapter.publish(adapter_pid, msg)
-		senderProtocol <- :go
-	end
-
+	
 	test "At Least Once - one time, good case" do
 		msg = makePublishMsg("Topic ALO", "ALO Message", :at_least_once, 35)
 		setupChannels(msg)
@@ -39,7 +18,7 @@ defmodule MqttexQosTest do
 		receive do
 			Mqttex.PubAckMsg[] = ack -> assert ack.msg_id == msg.msg_id
 			Mqttex.PublishMsg[] = received -> 
-				IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect msg}#{IO.ANSI.white}"
+				IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
 				assert received.msg_id == msg.msg_id
 			any -> flunk "Got invalid #{inspect any}"
 			after 1000 -> flunk "Timout"
@@ -47,17 +26,32 @@ defmodule MqttexQosTest do
 	end
 
 	test "At Most Once - one time, good case" do
-		msg = makePublishMsg("Topic ABO", "ABO Message", :at_most_once, 70)
+		msg = makePublishMsg("Topic AMO", "AMO Message", :at_most_once, 70)
 		setupChannels(msg)
 
 		receive do
 			Mqttex.PubCompMsg[] = ack -> assert ack.msg_id == msg.msg_id
 			Mqttex.PublishMsg[] = received -> 
-				IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect msg}#{IO.ANSI.white}"
+				IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
 				assert received.msg_id == msg.msg_id
 			any -> flunk "Got invalid #{inspect any}"
 			after 1000 -> flunk "Timeout"
 		end
+	end
+
+	test "At Least Once - one time, lossy channel" do
+		msg_id = 36
+		msg = makePublishMsg("Topic ALO", "Lossy ALO Message", :at_least_once, msg_id)
+		setupChannels(msg, 50)
+		# receive do
+		# 	Mqttex.PubAckMsg[] = ack -> 
+		# 		IO.puts "Got Ack"
+		# 		assert ack.msg_id == msg.msg_id
+		# after 1000 -> IO.puts "Did not get ack"
+		# end
+
+		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = received, 1000
+		IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
 	end
 
 	@doc "Generates lazily a sequence of Publish Msgs"
@@ -73,7 +67,7 @@ defmodule MqttexQosTest do
 	def channel(state // []) do
 		receive do
 			{:register, receiver} -> 
-				s = [receiver: receiver]
+				s = Dict.put(state, :receiver, receiver)
 				channel(s)
 			any -> 
 				case state[:receiver] do
@@ -81,11 +75,57 @@ defmodule MqttexQosTest do
 						:error_logger.error_msg("Channel #{inspect self} got message #{inspect any}")
 						channel(state)
 					receiver -> 
-						receiver <- any
+						# handle message-loss: If random number is lower than 
+						# the message-loss, we swallow the message and do not send it to 
+						# to the receiver.
+						lossRnd = :random.uniform(100)
+						IO.puts ("lossRnd = #{lossRnd}")
+						IO.puts ("state = #{inspect state}")
+						if (state[:loss] < lossRnd) do
+							receiver <- any
+						else
+							IO.puts "Swallow the message #{inspect any}"
+						end
 						channel(state)
 				end
 		end
 	end
+
+	@doc """
+	Does the setup for all channels, receivers. Parameters:
+
+	* `msg`: the message to send
+	* `loss`: the amount of message loss in percent. Defaults to `0` 
+	* `final_receiver_pid`: the final receiver of the message, defaults to `self`
+
+	"""
+	def setupChannels(msg, loss // 0, final_receiver_pid // self) do
+		if (loss == 0) do
+			IO.puts "Setting up channels"
+		else
+			IO.puts "Setting up lossy channel (loss = #{loss})"
+		end
+		losslist = ListDict.new [loss: loss]
+		chIn  = spawn_link(__MODULE__, :channel, [losslist])
+		chOut = spawn_link(__MODULE__, :channel, [losslist])
+
+		#IO.puts "Setting up Sender Adapter"
+		adapter_pid    = spawn_link(MqttextSimpleSenderAdapter, :start, [chOut])
+		chIn <- {:register, adapter_pid}
+
+		#IO.puts "Setting up Receiver Adapter"
+		receiver_pid = spawn_link(MqttextSimpleSenderAdapter, :start_receiver, [chIn])
+		chOut <- {:register, receiver_pid}
+
+		# we self want to receive messages receiver by the adapter
+		MqttextSimpleSenderAdapter.register_receiver(receiver_pid, final_receiver_pid)
+
+		# Here we go!
+		#IO.puts "Here we go!"
+		senderProtocol = MqttextSimpleSenderAdapter.publish(adapter_pid, msg)
+		senderProtocol <- :go
+	end
+
 
 end
 
@@ -171,26 +211,26 @@ defmodule MqttextSimpleSenderAdapter do
 	end
 
 	def send_msg(adapter_pid, msg) do
-		IO.puts "#{__MODULE__}: send_msg mit msg = #{inspect msg}"
-		IO.puts "#{__MODULE__}: process is #{inspect self}"
+		#IO.puts "#{__MODULE__}: send_msg mit msg = #{inspect msg}"
+		#IO.puts "#{__MODULE__}: process is #{inspect self}"
 		adapter_pid <- {:send, msg}
 		@timeout
 	end	
 
 	def send_received(adapter_pid, msg) do
-		IO.puts "#{__MODULE__}: send_received mit msg = #{inspect msg}"
+		#IO.puts "#{__MODULE__}: send_received mit msg = #{inspect msg}"
 		adapter_pid <- {:send, msg}
 		@timeout
 	end
 
 	def send_release(adapter_pid, msg) do
-		IO.puts "#{__MODULE__}: send_release mit msg = #{inspect msg}"
+		#IO.puts "#{__MODULE__}: send_release mit msg = #{inspect msg}"
 		adapter_pid <- {:send, msg}
 		@timeout
 	end
 
 	def send_complete(adapter_pid, msg) do
-		IO.puts "#{__MODULE__}: send_complete mit msg = #{inspect msg}"
+		#IO.puts "#{__MODULE__}: send_complete mit msg = #{inspect msg}"
 		adapter_pid <- {:send, msg}
 		@timeout
 	end
