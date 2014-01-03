@@ -42,13 +42,16 @@ defmodule MqttexQosTest do
 	test "At Least Once - one time, lossy channel" do
 		msg_id = 36
 		msg = makePublishMsg("Topic ALO", "Lossy ALO Message", :at_least_once, msg_id)
-		setupChannels(msg, 50)
-		# receive do
-		# 	Mqttex.PubAckMsg[] = ack -> 
-		# 		IO.puts "Got Ack"
-		# 		assert ack.msg_id == msg.msg_id
-		# after 1000 -> IO.puts "Did not get ack"
-		# end
+		setupChannels(msg, 70)
+
+		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = received, 1000
+		IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
+	end
+
+	test "At Most Once - one time, lossy channel" do
+		msg_id = 72
+		msg = makePublishMsg("Topic AMO", "Lossy AMO Message", :at_most_once, msg_id)
+		setupChannels(msg, 70)
 
 		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = received, 1000
 		IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
