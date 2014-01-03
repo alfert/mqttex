@@ -66,34 +66,6 @@ defmodule MqttexQosTest do
 		Mqttex.PublishMsg.new([header: header, topic: topic, message: content, msg_id: id ])
 	end
 	
-	@doc "A simple channel that forwards all messages it receives"
-	def channel(state // []) do
-		receive do
-			{:register, receiver} -> 
-				s = Dict.put(state, :receiver, receiver)
-				channel(s)
-			any -> 
-				case state[:receiver] do
-					nil -> # don't do any thing
-						:error_logger.error_msg("Channel #{inspect self} got message #{inspect any}")
-						channel(state)
-					receiver -> 
-						# handle message-loss: If random number is lower than 
-						# the message-loss, we swallow the message and do not send it to 
-						# to the receiver.
-						lossRnd = :random.uniform(100)
-						IO.puts ("lossRnd = #{lossRnd}")
-						IO.puts ("state = #{inspect state}")
-						if (state[:loss] < lossRnd) do
-							receiver <- any
-						else
-							IO.puts "Swallow the message #{inspect any}"
-						end
-						channel(state)
-				end
-		end
-	end
-
 	@doc """
 	Does the setup for all channels, receivers. Parameters:
 
@@ -109,8 +81,8 @@ defmodule MqttexQosTest do
 			IO.puts "Setting up lossy channel (loss = #{loss})"
 		end
 		losslist = ListDict.new [loss: loss]
-		chIn  = spawn_link(__MODULE__, :channel, [losslist])
-		chOut = spawn_link(__MODULE__, :channel, [losslist])
+		chIn  = spawn_link(Mqttex.TestChannel, :channel, [losslist])
+		chOut = spawn_link(Mqttex.TestChannel, :channel, [losslist])
 
 		#IO.puts "Setting up Sender Adapter"
 		adapter_pid    = spawn_link(MqttextSimpleSenderAdapter, :start, [chOut])
@@ -128,9 +100,8 @@ defmodule MqttexQosTest do
 		senderProtocol = MqttextSimpleSenderAdapter.publish(adapter_pid, msg)
 		senderProtocol <- :go
 	end
-
-
 end
+
 
 defmodule MqttextSimpleSenderAdapter do
 	use ExUnit.Case
