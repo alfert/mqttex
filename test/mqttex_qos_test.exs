@@ -3,11 +3,10 @@ defmodule MqttexQosTest do
 	use ExUnit.Case
 
 	test "Fire And Forget" do
-		msg = makePublishMsg("x", "nix")
-		qos = spawn(Mqttex.Qos0Sender, :start, [msg, MqttextSimpleSenderAdapter, self])
-		IO.puts "#{__MODULE__}: process is #{inspect self}"
-		qos <- :go
-		assert_receive(msg)
+		body = "FaF Message"
+		msg = makePublishMsg("Topic FaF", body)
+		setupChannels(msg)
+		assert_receive Mqttex.PublishMsg[message: ^body]
 	end
 
 	
@@ -176,6 +175,8 @@ defmodule MqttextSimpleSenderAdapter do
 	def start_receiver_qos(Mqttex.PublishMsg[header: header] = msg) do
 		qosProtocol = 
 			case header.qos do
+				:fire_and_forget -> spawn_link(Mqttex.QoS0Receiver, :start, 
+					[msg, MqttextSimpleSenderAdapter, self])
 				:at_least_once -> spawn_link(Mqttex.QoS1Receiver, :start, 
 					[msg, MqttextSimpleSenderAdapter, self])
 				:at_most_once -> spawn_link(Mqttex.QoS2Receiver, :start, 
