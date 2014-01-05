@@ -58,7 +58,7 @@ defmodule Mqttex.SenderBehaviour do
     end
 end
 
-defmodule ReceiverBehaviour do
+defmodule Mqttex.ReceiverBehaviour do
 	@moduledoc """
 	This is a behaviour for the receiver part of the qos transfers. It is not the client-side	
 	interface.
@@ -73,13 +73,13 @@ defmodule ReceiverBehaviour do
 	defmacro __using__(_) do
 		quote location: :keep do
 			def onMessage(pid) do
-				error_logger.error_msg("Unimplemented onMessage")
+				:error_logger.error_msg("Unimplemented onMessage")
 			end
 		end
 	end
 end
 
-defmodule Mqttex.Qos0Sender do
+defmodule Mqttex.QoS0Sender do
 	@moduledoc """
 	Implements a `fire and forget` sender protocol. There is no receiver, because nothing
 	has to be exchanged between sender and receiver beyond the first message.
