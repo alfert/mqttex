@@ -3,13 +3,29 @@ defmodule Mqttex.OutboundQueue do
 	This implements the outbound queue, publishing messages towards a single destination. 
 	It uses the QoS Protocols to factor out the correct behaviour for `at least once` or for 
 	`at most once` guarantees.
+
+	Its primary job is to start the QoS protocols and to multiplex the trafic between the
+	destination and the various active QoS protocols, identified by their message ids. 
+
+	The `OutboundQueue` can be used on the server side. Then its job is to publish messages 
+	from a topic towards the destination. It is also used for incoming messages from the 
+	destination with QoS1 or QoS2 to handle the QoS-protocol process. These are either publish, 
+	subscribe or unsubscribe messages. The name `OutboundQueue` is not really a good name, 
+	another names could be `ProtocolManager`. 
+
+	The `OutboundQueue` can be used on the client side. Then its job is to receive published
+	messages with QoS1 or Qos2. In this case, the `OutboundQueue` implements the `ReceiverBehaviour`.
+	For symmetry reasons it can also be used for publishing messages towards the server side. 
+	Again, the name `OutboundQueue` is not really a good name, 
+	another names could be `ProtocolManager`. 
 	"""
 
 	use Bitwise
 	use GenServer.Behaviour
-	@behaviour Mqttex.SenderBehaviour
+	use Mqttex.SenderBehaviour
+	use Mqttex.ReceiverBehaviour
 
-	defrecord QueueState, counter: 0, session: :none, session_mod: :none, transfers: []
+	defrecord QueueState, counter: 0, session: :none, session_mod: :none, timeout: 0, transfers: []
 
 	#####################################################################################
 	### API
@@ -20,7 +36,8 @@ defmodule Mqttex.OutboundQueue do
 		:gen_server.cast(queue, {:publish, topic, message, qos})
 	end
 	
-	def start_link(session, session_mod) do
+	def start_link(session, session_mod) when 
+		is_pid(session) and is_atom(session_mod) do
 		:gen_server.start_link(__MODULE__, [session, session_mod], [])
 	end
 	
@@ -50,7 +67,7 @@ defmodule Mqttex.OutboundQueue do
 	#####################################################################################
 	@doc """
 	Sends an outbound message as part of a QoS-Protocol. Is not a part of the general
-	public API but only called from the an QoS-Protocol implementation.
+	public API but only called from a QoS-Protocol implementation.
 	"""
 	@spec send_msg(term, Mqttex.SenderBehaviour.message_type) :: integer
 	def send_msg(queue, message) do
@@ -64,7 +81,7 @@ defmodule Mqttex.OutboundQueue do
 	
 	@doc """
 	Sends a release message and returns the current timeout for an answer in milliseconds. 
-	The first parameter is either a `pid` or an named process references for a genserver.
+	The first parameter is either a `pid` or a named process references for a genserver.
 	"""
 	@spec send_release(term, Mqttex.PubRelMsg.t) :: integer
 	def send_release(queue, message) do
@@ -78,11 +95,12 @@ defmodule Mqttex.OutboundQueue do
 	def handle_cast({:publish, topic, message, qos}, QueueState[] = state) do
 		msg = make_publish(topic, message, qos, state.counter)
 		pid = start_protocol(msg, qos)
+		# IO.puts "New protocol is #{inspect pid}"
 		new_state = new_protocol(pid, state, qos)
 		pid <- :go
 		{:noreply, new_state}
 	end
-	def handle_cast({recieve, msg_id, message}, QueueState[] = state) do
+	def handle_cast({:receive, msg_id, message}, QueueState[] = state) do
 		case get_protocol(state, msg_id) do
 			:none -> :ok # unknown process, we don't care
 			pid   -> pid <- message # process found, send message
@@ -91,9 +109,9 @@ defmodule Mqttex.OutboundQueue do
 	end
 	
 	def handle_call({:send, message}, from, 
-			QueueState[session: session, session_mod: session_mod] = state) do
+			QueueState[session: session, session_mod: session_mod, timeout: timeout] = state) do
 		session_mod.send_msg(session, message)
-		{:reply, state.timeout, state}
+		{:reply, timeout, state}
 	end
 	def handle_call({:completed, msg_id}, from, QueueState[] = state) do
 		new_state = delete_protocol(state, msg_id)
@@ -102,7 +120,8 @@ defmodule Mqttex.OutboundQueue do
 	
 	
 
-	def init([session, session_mod]) do
+	def init([session, session_mod]) when
+		is_pid(session) and is_atom(session_mod) do
 		{:ok, QueueState.new([session: session, session_mod: session_mod])}
 	end
 	
@@ -120,13 +139,13 @@ defmodule Mqttex.OutboundQueue do
 	after receiving the `:go` message. 
 	"""
 	def start_protocol(Mqttex.PublishMsg[] = msg, :fire_and_forget) do
-		spawn_link(Mqttex.Qos0Sender.start(msg, __MODULE__, self))
+		spawn_link(Mqttex.QoS0Sender, :start, [msg, __MODULE__, self])
 	end
 	def start_protocol(Mqttex.PublishMsg[] = msg, :at_least_once) do
-		spawn_link(Mqttex.Qos1Sender.start(msg, __MODULE__, self))
+		spawn_link(Mqttex.QoS1Sender, :start, [msg, __MODULE__, self])
 	end
 	def start_protocol(Mqttex.PublishMsg[] = msg, :at_most_once) do
-		spawn_link(Mqttex.Qos2Sender.start(msg, __MODULE__, self))
+		spawn_link(Mqttex.QoS2Sender, :start, [msg, __MODULE__, self])
 	end
 
 	@doc "Adds a new message protocol process to the transfer dictionary"
@@ -135,7 +154,7 @@ defmodule Mqttex.OutboundQueue do
 		state
 	end
 	def new_protocol(pid, QueueState[counter: counter, transfers: transfers] = state, _qos) do
-		# at_least_once and at_most_once have complex protocol: store the protocol process 
+		# at_least_once and at_most_once have a complex protocol: store the protocol process 
 		# message counters are 16 bit numbers
 		new_count = rem(counter + 1, 1 <<< 16)
 		new_trans = Dict.put(transfers, counter, pid)
