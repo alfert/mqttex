@@ -98,6 +98,14 @@ defmodule Mqttex.QoS0Sender do
 	end
 end
 
+defmodule Mqttex.QoS0Receiver do
+	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
+	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
+		mod.on_message(receiver, msg)
+		:ok
+	end
+end
+
 defmodule Mqttex.QoS1Sender do
 	@moduledoc """
 	Implements the behaviour of a sender process that expects acknowledgements from the 
