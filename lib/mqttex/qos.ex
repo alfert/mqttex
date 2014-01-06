@@ -37,7 +37,7 @@ defmodule Mqttex.SenderBehaviour do
 	# Emtpy default implementations
 	defmacro __using__(_) do
     	quote location: :keep do
-    		def send_msg(_queue, msg) do
+    		def send_msg(queue, msg) do
     			:error_logger.error_msg("#{__MODULE__}.send_msg(#{inspect queue}, #{inspect msg}")
     		end
 
@@ -81,8 +81,7 @@ end
 
 defmodule Mqttex.QoS0Sender do
 	@moduledoc """
-	Implements a `fire and forget` sender protocol. There is no receiver, because nothing
-	has to be exchanged between sender and receiver beyond the first message.
+	Implements a `fire and forget` sender protocol.
 	"""
 
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
@@ -99,6 +98,10 @@ defmodule Mqttex.QoS0Sender do
 end
 
 defmodule Mqttex.QoS0Receiver do
+	@moduledoc """
+	Implements the receiver for the `fire and forget`protocol. Delegates the incoming
+	message to the `on_message` function of the `receiver`'s module.
+	"""
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
 	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
 		mod.on_message(receiver, msg)
