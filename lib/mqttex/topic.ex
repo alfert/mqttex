@@ -51,8 +51,8 @@ defmodule Mqttex.Topic do
 	### Callbacks
 	####################################################################################
 
-	def handle_call({:publish, Mqttex.PublishMsg[message: content] = _msg, client}, 
-				    from, State[subscriptions: subs] = state) do
+	def handle_call({:publish, Mqttex.PublishMsg[message: content] = _msg, _client}, 
+				    _from, State[subscriptions: subs] = state) do
 		Enum.each(subs, fn({session, qos}) -> send_msg(session, content, qos) end)
 		{:reply, :ok, state}
 	end
@@ -62,7 +62,7 @@ defmodule Mqttex.Topic do
 	end
 	def handle_call({:unsubscribe, client}, _from, State[subscriptions: subs] = state) do
 		new_subs = Enum.filter(subs, 
-				fn {client, _} -> false 
+				fn {^client, _} -> false 
 					_          -> true end)
 		new_state = state.subscriptions new_subs
 		{:reply, :ok, new_state}
