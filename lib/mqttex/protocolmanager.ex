@@ -10,7 +10,7 @@ defmodule Mqttex.ProtocolManager do
 	"""
 
 	use Bitwise
-	use Dict.Behaviour
+	# use Dict.Behaviour
 
 	defrecord PMState, counter: 0, transfers: []
 
@@ -33,33 +33,38 @@ defmodule Mqttex.ProtocolManager do
 	new calculated message id. 
 
 	Any message that is not a `PublishMsg`, `SubscibeMsg` or `UnScubscribeMsg` is send
-	as `:fire_and_forget`. It is not checked for correctness but allows to send e.g. 
+	as `:fire_and_forget`. It is not checked for correctness and allows to send e.g. 
 	Ping-Messages via this approach. 
 	"""
-	def sender(PMState[] = state, Mqttex.PublishMsg[] = msg, session_mod, session_pid // self) do
-		msg_id = msg_id(state)
-		new_msg = msg.update([msg_id: msg_id])
-		header = msg.header
-		do_send(state, new_msg, msg_id, header.qos)
-	end
-	def sender(PMState[] = state, Mqttex.SubscribehMsg[] = msg, session_mod, session_pid // self) do
-		msg_id = msg_id(state)
-		new_msg = msg.update([msg_id: msg_id])
-		header = msg.header
-		do_send(state, new_msg, msg_id, header.qos)
-	end
-	def sender(PMState[] = state, Mqttex.UnSubscribehMsg[] = msg, session_mod, session_pid // self) do
-		msg_id = msg_id(state)
-		new_msg = msg.update([msg_id: msg_id])
-		header = msg.header
-		do_send(state, new_msg, msg_id, header.qos)
-	end
-	def sender(PMState[] = state, any_msg, session_mod, session_pid // self) do
-		# This should hopefully on be a message, which does not require any 
-		# other QoS or is even a inside-part of a protocol (e.g. Acks)
-		do_send(state, new_msg, -1, :fire_and_forget)
+	def sender(state, msg, session_mod) do
+		sender(state, msg, session_mod, self)
 	end
 	
+	def sender(PMState[] = state, Mqttex.PublishMsg[] = msg, session_mod, session_pid) do
+		msg_id = msg_id(state)
+		new_msg = msg.update([msg_id: msg_id])
+		header = msg.header
+		do_send(state, new_msg, msg_id, header.qos, session_mod, session_pid)
+	end
+	def sender(PMState[] = state, Mqttex.SubscribeMsg[] = msg, session_mod, session_pid) do
+		msg_id = msg_id(state)
+		new_msg = msg.update([msg_id: msg_id])
+		header = msg.header
+		do_send(state, new_msg, msg_id, header.qos, session_mod, session_pid)
+	end
+	def sender(PMState[] = state, Mqttex.UnSubscribeMsg[] = msg, session_mod, session_pid) do
+		msg_id = msg_id(state)
+		new_msg = msg.update([msg_id: msg_id])
+		header = msg.header
+		do_send(state, new_msg, msg_id, header.qos, session_mod, session_pid)
+	end
+	def sender(PMState[] = state, any_msg, session_mod, session_pid) do
+		# This should hopefully only be a message, which does not require any 
+		# other QoS or is even a inside-part of a protocol (e.g. Acks)
+		do_send(state, any_msg, -1, :fire_and_forget, session_mod, session_pid)
+	end
+
+
 	@doc """
 	Starts the real QoS-process
 	"""
@@ -73,25 +78,30 @@ defmodule Mqttex.ProtocolManager do
 		new_state
 	end
 	
-
 	@doc """
 	Receive a message. If it is a PublishMsg`, `SubscibeMsg` or `UnScubscribeMsg`, a QoS-Receiver
 	protocol process is started. Otherwise we dispatch to the existing protocol.
 	"""
-	def receiver(PMState[] = state, Mqttex.PublishMsg[msg_id: id] = msg, session_mod, session_pid // self) do
+	def receiver(state, msg, session_mod) do
+		receiver(state, msg, session_mod, self)
+	end
+	def receiver(PMState[] = state, Mqttex.PublishMsg[msg_id: id] = msg, session_mod, session_pid) do
 		header = msg.header
 		do_receive(state, msg, id, header.qos, session_mod, session_pid)
 	end
-	def receiver(PMState[] = state, any_msg, session_mod, session_pid // self) do
-		dispatch(state, any_msg)
+	def receiver(PMState[] = state, any_msg, _session_mod, _session_pid) do
+		:ok = dispatch(state, any_msg)
+		state
 	end
 	
 	def do_receive(state, msg, msg_id, qos, session_mod, session_pid) do
 		qos_pid = spawn_link(receiver_protocol(qos), :start, [msg, session_mod, session_pid])
 		new_state = update(state, msg_id, qos_pid) 
+		new_state
 	end
 
-	
+
+
 	@doc """
 	Dispatches the message to the associated QoS-protocol. Dispatching depends on 
 	the message id. Dispatching can only work for already active QoS protocols, 
@@ -99,15 +109,15 @@ defmodule Mqttex.ProtocolManager do
 
 	Returns `:ok` if the OoS Protocol is found, otherwise `:error`.
 	"""
-	def dispatch(PMState[] = state, Mqttex.PubAckMsg[msg_id: id] = msg),      do: dispatch(state, msg_id, msg)
-	def dispatch(PMState[] = state, Mqttex.PubRecMsg[msg_id: id] = msg),      do: dispatch(state, msg_id, msg)
-	def dispatch(PMState[] = state, Mqttex.PubRelMsg[msg_id: id] = msg),      do: dispatch(state, msg_id, msg)
-	def dispatch(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),     do: dispatch(state, msg_id, msg)
-	def dispatch(PMState[] = state, Mqttex.SubAckMsg[msg_id: id] = msg),      do: dispatch(state, msg_id, msg)
-	def dispatch(PMState[] = state, Mqttex.UnSubAckMsg[msg_id: id] = msg),    do: dispatch(state, msg_id, msg)
-	def dispatch(PMState[] = state, Mqttex.PublishMsg[msg_id: id] = msg),     do: :error
-	def dispatch(PMState[] = state, Mqttex.UnSubscribeMsg[msg_id: id] = msg), do: :error
-	def dispatch(PMState[] = state, Mqttex.SubscribeMsg[msg_id: id] = msg),   do: :error
+	def dispatch(PMState[] = state, Mqttex.PubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch(PMState[] = state, Mqttex.PubRecMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch(PMState[] = state, Mqttex.PubRelMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),  do: dispatch(state, id, msg)
+	def dispatch(PMState[] = state, Mqttex.SubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch(PMState[] = state, Mqttex.UnSubAckMsg[msg_id: id] = msg), do: dispatch(state, id, msg)
+	def dispatch(PMState[], Mqttex.PublishMsg[]),     do: :error
+	def dispatch(PMState[], Mqttex.UnSubscribeMsg[]), do: :error
+	def dispatch(PMState[], Mqttex.SubscribeMsg[]),   do: :error
 	
 
 	@doc """
@@ -157,18 +167,20 @@ defmodule Mqttex.ProtocolManager do
 		Dict.fetch(transfers, key)
 	end
 
-	@spec update(PMState.t, integer, pid, (pid -> pid)) :: PMState
-	def update(PMState[transfers: transfers], key, initial, fun) do
-		new_trans = Dict.update(transfers, key, initial, fun)
+	# unlike Dict.Behaviour 
+	@spec update(PMState.t, integer, pid) :: PMState
+	def update(PMState[transfers: transfers] = state, key, initial) do
+		new_trans = Dict.update(transfers, key, initial)
 		state.update([transfers: new_trans])
 	end
 	
 	@spec delete(PMState.t, integer) :: PMState.t
-	def delete(PMState[transfers: transfers], key) do
+	def delete(PMState[transfers: transfers] = state, key) do
 		new_trans = Dict.delete(transfers, key)
 		state.update([transfers: new_trans])
 	end
 
+	# only for Dict.Behaviour - not really needed
 	@spec reduce(PMState.t, any, (any -> any)) :: any
 	def reduce(PMState[transfers: transfers], acc, fun) do
 		Enum.reduce(transfers, acc, fun)
@@ -176,19 +188,8 @@ defmodule Mqttex.ProtocolManager do
 	
 
 	#################################################################################
-	## Access Functions
-	#################################################################################
-	defimpl Access, for: PMState do
-		def access(PMState[transfers: transfers], msg_id) do
-			transfers[msg_id]
-		end
-	end
-
-
-	#################################################################################
 	## Internal Functions
 	#################################################################################
-
 	
 	@doc """
 	Returns the Module implementing the QoS sender protocol
@@ -204,4 +205,6 @@ defmodule Mqttex.ProtocolManager do
 	def receiver_protocol(:at_least_once), do: Mqttex.QoS1Receiver
 	def receiver_protocol(:at_most_once), do: Mqttex.QoS2Receiver
 
+
 end
+
