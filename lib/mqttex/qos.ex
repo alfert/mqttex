@@ -134,12 +134,12 @@ defmodule Mqttex.QoS1Sender do
 	
 	def send_msg(msg, id, mod, sender, duplicate) do
 		m = msg.header.duplicate(duplicate == :second)
-		timeout = mod.send_msg(sender, msg)
+		timeout = mod.send_msg(sender, m)
 		receive do
 			Mqttex.PubAckMsg[msg_id: ^id] -> :ok
 			Mqttex.SubAckMsg[msg_id: ^id] -> :ok
 			Mqttex.UnSubAckMsg[msg_id: ^id] -> :ok
-			after timeout                -> send_msg(msg, id, mod, sender, :second)
+			after timeout                -> send_msg(m, id, mod, sender, :second)
 		end
 	end
 
@@ -227,7 +227,7 @@ defmodule Mqttex.QoS2Receiver do
 		send_received(msg.msg_id, mod, receiver, :first)
 	end
 
-	def send_received(msg_id, mod, receiver, duplicate) do
+	def send_received(msg_id, mod, receiver, _duplicate) do
 		received = Mqttex.PubRecMsg[msg_id: msg_id]
 		timeout = mod.send_received(receiver, received)
 		receive do
@@ -237,7 +237,7 @@ defmodule Mqttex.QoS2Receiver do
 		end
 	end
 
-	def send_complete(msg_id, mod, receiver, duplicate) do
+	def send_complete(msg_id, mod, receiver, _duplicate) do
 		complete = Mqttex.PubCompMsg[msg_id: msg_id]
 		mod.send_complete(receiver, complete)
 		:ok
