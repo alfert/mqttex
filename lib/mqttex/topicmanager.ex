@@ -54,6 +54,8 @@ defmodule Mqttex.TopicManager do
 		# somewhere else.
 		Mqttex.SubTopic.start_topic(topic) 
 		Mqttex.Topic.publish(msg, from)
+		# return value is missing!
+		0 = 1 
 	end
 	def handle_call({:subscribe, Mqttex.SubscribeMsg[] = topics, from}, client, state) do
 		# TODO
