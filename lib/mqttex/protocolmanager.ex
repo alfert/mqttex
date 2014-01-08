@@ -56,6 +56,7 @@ defmodule Mqttex.ProtocolManager do
 		msg_id = msg_id(state)
 		new_msg = msg.update([msg_id: msg_id])
 		header = msg.header
+		
 		do_send(state, new_msg, msg_id, header.qos, session_mod, session_pid)
 	end
 	def sender(PMState[] = state, any_msg, session_mod, session_pid) do
@@ -86,6 +87,14 @@ defmodule Mqttex.ProtocolManager do
 		receiver(state, msg, session_mod, self)
 	end
 	def receiver(PMState[] = state, Mqttex.PublishMsg[msg_id: id] = msg, session_mod, session_pid) do
+		header = msg.header
+		do_receive(state, msg, id, header.qos, session_mod, session_pid)
+	end
+	def receiver(PMState[] = state, Mqttex.SubscribeMsg[msg_id: id] = msg, session_mod, session_pid) do
+		header = msg.header
+		do_receive(state, msg, id, header.qos, session_mod, session_pid)
+	end
+	def receiver(PMState[] = state, Mqttex.UnSubscribeMsg[msg_id: id] = msg, session_mod, session_pid) do
 		header = msg.header
 		do_receive(state, msg, id, header.qos, session_mod, session_pid)
 	end
