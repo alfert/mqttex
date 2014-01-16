@@ -126,7 +126,7 @@ defmodule Mqttex.Server do
 		{:next_state, :clean_disconnect, state}
 	end
 	def clean_session({:send_msg, content}, ConnectionState[client_proc: client]=state) do
-		client <- content
+		send(client, content)
 		{:next_state, :clean_session, state}
 	end
 	

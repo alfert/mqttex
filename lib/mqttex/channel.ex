@@ -23,7 +23,7 @@ defmodule Mqttex.TestChannel do
 						#IO.puts ("lossRnd = #{lossRnd}")
 						# IO.puts ("state = #{inspect state}")
 						if (state[:loss] < lossRnd) do
-							receiver <- any
+							send(receiver, any)
 						else
 							:error_logger.error_msg "Swallow the message #{inspect any}"
 						end
@@ -62,15 +62,15 @@ defmodule Mqttex.Test.SessionAdapter do
 	
 	
 	def publish(session, Mqttex.PublishMsg[] = msg) do
-		session <- {:publish, msg}
+		send(session, {:publish, msg})
 	end
 
 	def on_message(session, msg) do
-		session <- {:on, msg}		
+		send(session, {:on, msg})		
 	end
 
 	def print_state(session) do
-		session <- :print_state				
+		send(session, :print_state)
 	end
 							
 
@@ -78,21 +78,21 @@ defmodule Mqttex.Test.SessionAdapter do
 	Sends the message to the channel
 	"""
 	def send_msg(session, msg) do
-		session <- {:send, msg}
+		send(session, {:send, msg})
 		@timeout
 	end
 	def send_received(session, msg) do
-		session <- {:send, msg}
+		send(session, {:send, msg})
 		@timeout
 	end
 	def send_release(session, msg) do
-		session <- {:send, msg}
-		session <- {:drop_sender, msg}
+		send(session, {:send, msg})
+		send(session, {:drop_sender, msg})
 		@timeout
 	end
 	def send_complete(session, msg) do
-		session <- {:send, msg}
-		session <- {:drop_receiver, msg}
+		send(session, {:send, msg})
+		send(session, {:drop_receiver, msg})
 		@timeout
 	end
 			
@@ -103,7 +103,7 @@ defmodule Mqttex.Test.SessionAdapter do
 				IO.puts("State of #{inspect self}: #{inspect state}")
 				loop(channel, state)
 			{:send, msg} -> 
-				channel <- msg
+				send(channel, msg)
 				loop(channel, state)
 			{:drop_sender, msg} ->
 				new_sender = Mqttex.ProtocolManager.delete(state.senders, msg.msg_id)
@@ -113,7 +113,7 @@ defmodule Mqttex.Test.SessionAdapter do
 				loop(channel, state.update(receivers: new_receiver))
 			{:on, msg} -> 
 				# :error_logger.info_msg("on_message: #{inspect msg}\nSending to #{inspect state.final}")
-				state.final <- msg 
+				send(state.final, msg)
 				loop(channel, state)
 			{:publish, pub} ->
 				new_sender = Mqttex.ProtocolManager.sender(state.senders, pub, __MODULE__, self)
@@ -127,7 +127,7 @@ defmodule Mqttex.Test.SessionAdapter do
 						case Mqttex.ProtocolManager.dispatch_sender(state.senders, msg) do
 							:error -> 
 								# IO.puts ("MqttexSessionAdapter.loop: got unknown message #{inspect msg}")
-								state.final <- msg
+								send(state.final, msg)
 							_ -> :ok
 						end
 					_ -> :ok

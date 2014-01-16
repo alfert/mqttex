@@ -64,7 +64,7 @@ defmodule MqttexQueueTest do
 		receive do
 			after 10 -> nil
 		end
-		self <- :done
+		send(self, :done)
 
 		result = slurp()
 		IO.puts "Slurp result: #{inspect result}"
@@ -131,8 +131,8 @@ defmodule MqttexQueueTest do
 		assert is_pid(sessionReceiver)
 	
 		# Register the Sessions as Targets for the Channels
-		chSender <- {:register, sessionReceiver}
-		chReceiver <- {:register, sessionSender}
+		send(chSender, {:register, sessionReceiver})
+		send(chReceiver, {:register, sessionSender})
   
 		{sessionSender, sessionReceiver}
 	end

@@ -75,7 +75,7 @@ defmodule Mqttex.ProtocolManager do
 			:fire_and_forget -> state # we do not memorize fire-and-forget: just forget it
 			_ -> put(state, msg_id, qos_pid)
 		end
-		qos_pid <- :go
+		send(qos_pid, :go)
 		new_state
 	end
 	
@@ -137,7 +137,7 @@ defmodule Mqttex.ProtocolManager do
 	def dispatch(PMState[] = state, msg_id, msg) do
 		case fetch(state, msg_id) do
 			{:ok, pid} -> 
-				pid <- msg
+				send(pid, msg)
 				:ok
 			:error -> :error
 		end

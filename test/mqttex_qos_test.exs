@@ -81,11 +81,11 @@ defmodule MqttexQosTest do
 
 		#IO.puts "Setting up Sender Adapter"
 		adapter_pid    = spawn_link(MqttextSimpleSenderAdapter, :start, [chOut])
-		chIn <- {:register, adapter_pid}
+		send(chIn, {:register, adapter_pid})
 
 		#IO.puts "Setting up Receiver Adapter"
 		receiver_pid = spawn_link(MqttextSimpleSenderAdapter, :start_receiver, [chIn])
-		chOut <- {:register, receiver_pid}
+		send(chOut, {:register, receiver_pid})
 
 		# we self want to receive messages receiver by the adapter
 		MqttextSimpleSenderAdapter.register_receiver(receiver_pid, final_receiver_pid)
@@ -93,7 +93,7 @@ defmodule MqttexQosTest do
 		# Here we go!
 		#IO.puts "Here we go!"
 		senderProtocol = MqttextSimpleSenderAdapter.publish(adapter_pid, msg)
-		senderProtocol <- :go
+		send(senderProtocol, :go)
 	end
 end
 
@@ -110,12 +110,12 @@ defmodule MqttextSimpleSenderAdapter do
 	def loop(state) do
 		new_state = receive do
 			{:send, msg} -> 
-				state[:channel] <- msg
+				send(state[:channel], msg)
 				state
 			{:register, qos} -> 
 				Dict.put(state, :qos, qos)
 			any -> 
-				state[:qos] <- any
+				send(state[:qos], any)
 				state
 		end
 		loop(new_state)
@@ -134,19 +134,19 @@ defmodule MqttextSimpleSenderAdapter do
 				case state[:qos] do
 					nil -> qos = start_receiver_qos(msg)
 						   Dict.put(state, :qos, qos)
-					qos -> qos <- msg
+					qos -> send(qos, msg)
 						   state 
 				end
 			{:send, msg} ->
-				state[:channel] <- msg
+				send(state[:channel], msg)
 				state
 			{:on_message, msg} ->
-				state[:receiver] <- msg
+				send(state[:receiver], msg)
 				state
 			{:receiver, receiver_pid} ->
 				Dict.put(state, :receiver, receiver_pid)
 			any ->
-				state[:qos] <- any
+				send(state[:qos], any)
 				state
 		end
 		receiver_loop(new_state)
@@ -164,7 +164,7 @@ defmodule MqttextSimpleSenderAdapter do
 				:at_most_once -> spawn_link(Mqttex.QoS2Sender, :start, 
 					[msg, MqttextSimpleSenderAdapter, adapter_pid])
 			end
-		adapter_pid <- {:register, qosProtocol}
+		send(adapter_pid, {:register, qosProtocol})
 		qosProtocol
 	end
 	
@@ -184,34 +184,34 @@ defmodule MqttextSimpleSenderAdapter do
 	def send_msg(adapter_pid, msg) do
 		#IO.puts "#{__MODULE__}: send_msg mit msg = #{inspect msg}"
 		#IO.puts "#{__MODULE__}: process is #{inspect self}"
-		adapter_pid <- {:send, msg}
+		send(adapter_pid, {:send, msg})
 		@timeout
 	end	
 
 	def send_received(adapter_pid, msg) do
 		#IO.puts "#{__MODULE__}: send_received mit msg = #{inspect msg}"
-		adapter_pid <- {:send, msg}
+		send(adapter_pid, {:send, msg})
 		@timeout
 	end
 
 	def send_release(adapter_pid, msg) do
 		#IO.puts "#{__MODULE__}: send_release mit msg = #{inspect msg}"
-		adapter_pid <- {:send, msg}
+		send(adapter_pid, {:send, msg})
 		@timeout
 	end
 
 	def send_complete(adapter_pid, msg) do
 		#IO.puts "#{__MODULE__}: send_complete mit msg = #{inspect msg}"
-		adapter_pid <- {:send, msg}
+		send(adapter_pid, {:send, msg})
 		@timeout
 	end
 
 	def on_message(adapter_pid, msg) do
-		adapter_pid <- {:on_message, msg}
+		send(adapter_pid, {:on_message, msg})
 	end
 	
 	def register_receiver(adapter_pid, receiver_pid) do
-		adapter_pid <- {:receiver, receiver_pid}
+		send(adapter_pid, {:receiver, receiver_pid})
 	end
 end
 
@@ -239,7 +239,7 @@ defmodule MqttextSimpleReceiverQueue do
 		receive do
 			Mqttex.PubRelMsg[] = msg -> 
 				IO.puts "Got Release msg #{inspect msg}"
-				receiver_pid <- msg
+				send(receiver_pid, msg)
 			any -> IO.puts("#{__MODULE__}.wait_for_release got bizarre msg #{inspect any} -> recurse")
 				   wait_for_release(receiver_pid, sender_pid)
 			after 1000 -> flunk("#{__MODULE__}.wait_for_release: timeout, got no message")
