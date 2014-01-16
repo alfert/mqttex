@@ -44,7 +44,7 @@ defmodule MqttexQosTest do
 		setupChannels(msg, 70)
 
 		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = received, 1000
-		IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
+		# IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
 	end
 
 	test "At Most Once - one time, lossy channel" do
@@ -53,7 +53,7 @@ defmodule MqttexQosTest do
 		setupChannels(msg, 70)
 
 		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = received, 2000
-		IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
+		# IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
 	end
 
 	def makePublishMsg(topic, content, qos // :fire_and_forget, id // 0 ) do
