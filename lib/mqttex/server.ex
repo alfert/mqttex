@@ -75,7 +75,7 @@ defmodule Mqttex.Server do
 		# TODO: check that the connection data is proper. Invalidity results in {:stop, error_code}, 
 		# where error_code is of type conn_ack_type
 		IO.puts "#{__MODULE__}.init"
-		queue = Mqttex.OutboundQueue.start_link(self, __MODULE__)
+		queue = nil # Mqttex.OutboundQueue.start_link(self, __MODULE__)
 		{:ok, :clean_session, 
 			ConnectionState.new([connection: connection, client_proc: client_proc, 
 				out_queue: queue]), 
