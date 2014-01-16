@@ -49,24 +49,24 @@ defmodule MqttexQueueTest do
 		msg = "Lossy Message AMO"
 		Mqttex.Test.SessionAdapter.publish(q, "AMO-Topic", msg, :at_most_once)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_000
+		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_100
 	end
 
 
-	test "A many ALO messages" do
+	test "Many ALO messages" do
 		{q, qIn} = setupQueue()
-		messages = generateMessages(10)
+		messages = generateMessages(100)
 		# IO.puts "messages are: #{inspect messages}"
 
 		Enum.each(messages, 
 			fn(m) -> Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", m, :at_least_once) end)
 
 		receive do
-			after 1_00 -> nil
+			after 10 -> nil
 		end
 		self <- :done
 
-		result = slurp(ListDict.new)
+		result = slurp()
 		IO.puts "Slurp result: #{inspect result}"
 		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
 	end
@@ -75,21 +75,22 @@ defmodule MqttexQueueTest do
 		{q, _qIn} = setupQueue()
 		msg1 = "Initial Message ALO"
 		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg1, :at_least_once)
-
 		assert_receive Mqttex.PublishMsg[message: ^msg1], 1_000
 
 		msg2 = "2nd Message ALO"
 		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg2, :at_least_once)
-
 		assert_receive Mqttex.PublishMsg[message: ^msg2], 1_000
 	end
 
 
-	def slurp(msgs) do
+	@doc """
+	Sluprs all messages and counts how often each message occurs. 
+	"""
+	def slurp(msgs // ListDict.new) do
 		receive do
 			Mqttex.PublishMsg[message: m] ->	
 				slurp(Dict.update(msgs, m, 1, fn(x) -> x + 1 end))
-			# :done -> msgs
+			:done -> msgs
 			any -> IO.puts ("got any = #{inspect any}")
 				slurp(msgs)
 			after 1_000 -> msgs
