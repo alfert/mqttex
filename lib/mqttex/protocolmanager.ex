@@ -99,13 +99,13 @@ defmodule Mqttex.ProtocolManager do
 		do_receive(state, msg, id, header.qos, session_mod, session_pid)
 	end
 	def receiver(PMState[] = state, any_msg, _session_mod, _session_pid) do
-		:ok = dispatch(state, any_msg)
+		:ok = dispatch_receiver(state, any_msg)
 		state
 	end
 	
 	def do_receive(state, msg, msg_id, qos, session_mod, session_pid) do
 		qos_pid = spawn_link(receiver_protocol(qos), :start, [msg, session_mod, session_pid])
-		new_state = update(state, msg_id, qos_pid) 
+		new_state = put(state, msg_id, qos_pid) 
 		new_state
 	end
 
@@ -118,16 +118,15 @@ defmodule Mqttex.ProtocolManager do
 
 	Returns `:ok` if the OoS Protocol is found, otherwise `:error`.
 	"""
-	def dispatch(PMState[] = state, Mqttex.PubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
-	def dispatch(PMState[] = state, Mqttex.PubRecMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
-	def dispatch(PMState[] = state, Mqttex.PubRelMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
-	def dispatch(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),  do: dispatch(state, id, msg)
-	def dispatch(PMState[] = state, Mqttex.SubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
-	def dispatch(PMState[] = state, Mqttex.UnSubAckMsg[msg_id: id] = msg), do: dispatch(state, id, msg)
-	def dispatch(PMState[], Mqttex.PublishMsg[]),     do: :error
-	def dispatch(PMState[], Mqttex.UnSubscribeMsg[]), do: :error
-	def dispatch(PMState[], Mqttex.SubscribeMsg[]),   do: :error
-	
+	def dispatch_sender(PMState[] = state, Mqttex.PubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch_sender(PMState[] = state, Mqttex.PubRecMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch_sender(PMState[] = state, Mqttex.SubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch_sender(PMState[] = state, Mqttex.UnSubAckMsg[msg_id: id] = msg), do: dispatch(state, id, msg)
+	def dispatch_sender(PMState[] = state, msg), do: :error
+
+	def dispatch_receiver(PMState[] = state, Mqttex.PubRelMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch_receiver(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),  do: dispatch(state, id, msg)
+	def dispatch_receiver(PMState[] = state, msg), do: :error
 
 	@doc """
 	Dispatches the message to its QoS-protocol. This function is not part of the 
