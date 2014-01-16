@@ -52,14 +52,10 @@ defmodule MqttexQosTest do
 		msg = makePublishMsg("Topic AMO", "Lossy AMO Message", :at_most_once, msg_id)
 		setupChannels(msg, 70)
 
-		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = received, 1000
+		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = received, 2000
 		IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
 	end
 
-	@doc "Generates lazily a sequence of Publish Msgs"
-	def generatePublishMsgs(qos, countStart) do
-	end
-	
 	def makePublishMsg(topic, content, qos // :fire_and_forget, id // 0 ) do
 		header= Mqttex.FixedHeader.new([qos: qos, message_type: :publish])
 		Mqttex.PublishMsg.new([header: header, topic: topic, message: content, msg_id: id ])
@@ -228,7 +224,7 @@ defmodule MqttextSimpleReceiverQueue do
 		end
 	end
 
-	def wait_for_message(sender_pid, receiver_mod, queue_pid, tester_mod) do
+	def wait_for_message(sender_pid, receiver_mod, _queue_pid, tester_mod) do
 		receive do
 			msg ->
 				IO.puts("#{__MODULE__}.start Receiver with message #{inspect msg}")
