@@ -7,43 +7,102 @@ defmodule MqttexQueueTest do
 	use ExUnit.Case
 
 	test "Simple Send via Queue" do
-		q = setupQueue()
-		Mqttex.OutboundQueue.send_msg(q, :hallo)
+		{q, _qIn} = setupQueue()
+		Mqttex.Test.SessionAdapter.send_msg(q, :hallo)
 		assert_receive :hallo, 200
 	end
 
 	test "Publish FaF via Queue" do
-		q = setupQueue()
+		{q, _qIn} = setupQueue()
 		msg = "Initial Message FaF"
-		Mqttex.OutboundQueue.publish(q, "FAF-Topic", msg, :fire_and_forget)
+		Mqttex.Test.SessionAdapter.publish(q, "FAF-Topic", msg, :fire_and_forget)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_000
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
 	end
 
 	test "Publish ALO via Queue" do
-		q = setupQueue()
+		{q, _qIn} = setupQueue()
 		msg = "Initial Message ALO"
-		Mqttex.OutboundQueue.publish(q, "ALO-Topic", msg, :at_least_once)
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg, :at_least_once)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_000
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
 	end
 
 	test "Publish AMO via Queue" do
-		q = setupQueue()
+		{q, qIn} = setupQueue()
 		msg = "Initial Message AMO"
-		Mqttex.OutboundQueue.publish(q, "AMO-Topic", msg, :at_most_once)
+		Mqttex.Test.SessionAdapter.publish(q, "AMO-Topic", msg, :at_most_once)
 
 		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_000
 	end
 
 	test "Publish ALO via Lossy Queue" do
-		q = setupQueue(70)
+		{q, qIn} = setupQueue(70)
 		msg = "Lossy Message ALO"
-		Mqttex.OutboundQueue.publish(q, "ALO-Topic", msg, :at_least_once)
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg, :at_least_once)
 
 		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_000
 	end
 
+	test "Publish AMO via Lossy Queue" do
+		{q, qIn} = setupQueue(70)
+		msg = "Lossy Message AMO"
+		Mqttex.Test.SessionAdapter.publish(q, "AMO-Topic", msg, :at_most_once)
+
+		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_000
+	end
+
+
+	test "A many ALO messages" do
+		{q, qIn} = setupQueue()
+		messages = generateMessages(10)
+		# IO.puts "messages are: #{inspect messages}"
+
+		Enum.each(messages, 
+			fn(m) -> Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", m, :at_least_once) end)
+
+		receive do
+			after 1_00 -> nil
+		end
+		self <- :done
+
+		result = slurp(ListDict.new)
+		IO.puts "Slurp result: #{inspect result}"
+		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
+	end
+
+	test "Publish two ALOs via Queue" do
+		{q, _qIn} = setupQueue()
+		msg1 = "Initial Message ALO"
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg1, :at_least_once)
+
+		assert_receive Mqttex.PublishMsg[message: ^msg1], 1_000
+
+		msg2 = "2nd Message ALO"
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg2, :at_least_once)
+
+		assert_receive Mqttex.PublishMsg[message: ^msg2], 1_000
+	end
+
+
+	def slurp(msgs) do
+		receive do
+			Mqttex.PublishMsg[message: m] ->	
+				slurp(Dict.update(msgs, m, 1, fn(x) -> x + 1 end))
+			# :done -> msgs
+			any -> IO.puts ("got any = #{inspect any}")
+				slurp(msgs)
+			after 1_000 -> msgs
+		end
+	end
+	
+
+	def generateMessages(count) do
+		range = 1..count 
+		result = Stream.map(range, &("Message #{&1}"))
+
+	end
+	
 
 	@doc """
 	Does the setup for all channels, receivers. Parameters:
@@ -58,43 +117,23 @@ defmodule MqttexQueueTest do
 			IO.puts "Setting up lossy channel (loss = #{loss})"
 		end
 		losslist = ListDict.new [loss: loss]
-		channel = spawn_link(Mqttex.TestChannel, :channel, [losslist])
-		assert is_pid(channel)
-		channel <- {:register, final_receiver_pid}
+		# Create Outbound and Inbound Communication Channels
+		chSender = spawn_link(Mqttex.TestChannel, :channel, [losslist])
+		assert is_pid(chSender)
+		chReceiver = spawn_link(Mqttex.TestChannel, :channel, [losslist])
+		assert is_pid(chReceiver)
 
-		session = spawn_link(MqttexSessionAdapter, :loop, [channel])
-		assert is_pid(session)
-
-		{:ok, q} = Mqttex.OutboundQueue.start_link(session, MqttexSessionAdapter)
-		assert is_pid(q)
-		q
-	end
-
-end
-
-defmodule MqttexSessionAdapter do
-	@moduledoc """
-	Adapter for Sessions
-	"""
-
-	@doc """
-	Sends the message to the channel
-	"""
-	def send_msg(session, msg) do
-		session <- {:send, msg}
-	end
+		# Sessions encapsule the Communication Channels
+		sessionSender = spawn_link(Mqttex.Test.SessionAdapter, :start, [chSender, final_receiver_pid])
+		assert is_pid(sessionSender)
+		sessionReceiver = spawn_link(Mqttex.Test.SessionAdapter, :start, [chReceiver, final_receiver_pid])
+		assert is_pid(sessionReceiver)
 	
-
-	def loop(channel) do
-		receive do
-			{:send, msg} -> 
-				channel <- msg
-				loop(channel)
-			any -> 
-				IO.puts ("MqttexSessionAdapter.loop: got unknown message #{inspect any}")
-				loop(channel)
-		end
+		# Register the Sessions as Targets for the Channels
+		chSender <- {:register, sessionReceiver}
+		chReceiver <- {:register, sessionSender}
+  
+		{sessionSender, sessionReceiver}
 	end
-	
 
 end
