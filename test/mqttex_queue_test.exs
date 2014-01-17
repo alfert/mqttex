@@ -83,7 +83,7 @@ defmodule MqttexQueueTest do
 		bulk_send(messages, q, :at_most_once, "AMO-Topic")
 		result = slurp()
 		IO.puts "Slurp result: #{inspect result}"
-		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
+		Enum.each(messages, fn(m) -> assert result[m] == 1 end)
 	end
 
 
