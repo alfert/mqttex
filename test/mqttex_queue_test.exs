@@ -52,6 +52,17 @@ defmodule MqttexQueueTest do
 		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_100
 	end
 
+	test "Publish two ALOs via Queue" do
+		{q, _qIn} = setupQueue()
+		msg1 = "Initial Message ALO"
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg1, :at_least_once)
+		assert_receive Mqttex.PublishMsg[message: ^msg1], 1_000
+
+		msg2 = "2nd Message ALO"
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg2, :at_least_once)
+		assert_receive Mqttex.PublishMsg[message: ^msg2], 1_000
+	end
+
 
 	test "Many ALO messages" do
 		{q, qIn} = setupQueue()
@@ -71,17 +82,7 @@ defmodule MqttexQueueTest do
 		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
 	end
 
-	test "Publish two ALOs via Queue" do
-		{q, _qIn} = setupQueue()
-		msg1 = "Initial Message ALO"
-		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg1, :at_least_once)
-		assert_receive Mqttex.PublishMsg[message: ^msg1], 1_000
-
-		msg2 = "2nd Message ALO"
-		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg2, :at_least_once)
-		assert_receive Mqttex.PublishMsg[message: ^msg2], 1_000
-	end
-
+	
 
 	@doc """
 	Sluprs all messages and counts how often each message occurs. 
