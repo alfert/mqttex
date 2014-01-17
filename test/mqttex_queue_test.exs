@@ -75,6 +75,18 @@ defmodule MqttexQueueTest do
 		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
 	end
 
+	test "Many AMO messages" do
+		{q, qIn} = setupQueue()
+		messages = generateMessages(100)
+		# IO.puts "messages are: #{inspect messages}"
+
+		bulk_send(messages, q, :at_most_once, "AMO-Topic")
+		result = slurp()
+		IO.puts "Slurp result: #{inspect result}"
+		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
+	end
+
+
 	@doc """
 	Sends a bulk of messages into a queue, a topic and with a given QoS.
 	"""
