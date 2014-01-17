@@ -69,20 +69,25 @@ defmodule MqttexQueueTest do
 		messages = generateMessages(100)
 		# IO.puts "messages are: #{inspect messages}"
 
-		Enum.each(messages, 
-			fn(m) -> Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", m, :at_least_once) end)
-
-		receive do
-			after 10 -> nil
-		end
-		send(self, :done)
-
+		bulk_send(messages, q, :at_least_once, "ALO-Topic")
 		result = slurp()
 		IO.puts "Slurp result: #{inspect result}"
 		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
 	end
 
-	
+	@doc """
+	Sends a bulk of messages into a queue, a topic and with a given QoS.
+	"""
+	def bulk_send(messages, q, qos, topic // "Any Topic") do
+		Enum.each(messages, 
+			fn(m) -> Mqttex.Test.SessionAdapter.publish(q, topic, m, qos) end)
+
+		receive do
+			after 10 -> nil
+		end
+		send(self, :done)			
+	end
+			
 
 	@doc """
 	Sluprs all messages and counts how often each message occurs. 
