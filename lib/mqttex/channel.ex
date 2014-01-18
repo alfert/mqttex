@@ -133,14 +133,6 @@ defmodule Mqttex.Test.SessionAdapter do
 					:error ->
 						case Mqttex.ProtocolManager.dispatch_sender(state.senders, msg) do
 							:error ->
-								# TODO:
-								# We come here. This means, the message cannot not be identified
-								# to a running qos process. This should not happen. Why is this 
-								# so? 
-								# ==> Looks like a nasty interference of timeouts and async sends. 
-								# After a send release we drop the sender, but it should got the
-								# completed message and die afterwards. Including the removal 
-								# from qos map. Hmm. How to do this properly?
 								IO.puts ("MqttexSessionAdapter.loop #{inspect self}: got unknown message #{inspect msg}")
 								send(state.final, msg)
 								raise binary_to_atom("#{inspect msg}")
