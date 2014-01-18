@@ -25,7 +25,7 @@ defmodule Mqttex.TestChannel do
 						if (state[:loss] < lossRnd) do
 							send(receiver, any)
 						else
-							:error_logger.error_msg "Swallow the message #{inspect any}"
+							# :error_logger.error_msg "Swallow the message #{inspect any}"
 						end
 						channel(state)
 				end
