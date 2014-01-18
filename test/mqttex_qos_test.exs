@@ -213,6 +213,16 @@ defmodule MqttextSimpleSenderAdapter do
 	def register_receiver(adapter_pid, receiver_pid) do
 		send(adapter_pid, {:receiver, receiver_pid})
 	end
+
+	# this is a no-op here
+	def finish_sender(adapter_pid, msg_id) do
+		:ok
+	end
+	# this is a no-op here
+	def finish_receiver(adapter_pid, msg_id) do
+		:ok
+	end
+	
 end
 
 defmodule MqttextSimpleReceiverQueue do
