@@ -87,14 +87,21 @@ defmodule Mqttex.Test.SessionAdapter do
 	end
 	def send_release(session, msg) do
 		send(session, {:send, msg})
-		send(session, {:drop_sender, msg})
+		# send(session, {:drop_sender, msg})
 		@timeout
 	end
 	def send_complete(session, msg) do
 		send(session, {:send, msg})
-		send(session, {:drop_receiver, msg})
+		#send(session, {:drop_receiver, msg})
 		@timeout
 	end
+	def finish_sender(session, msg_id) do
+		send(session, {:drop_sender, msg_id})
+	end
+	def finish_receiver(session, msg_id) do
+		send(session, {:drop_receiver, msg_id})
+	end
+	
 			
 
 	def loop(channel, state) do
@@ -105,11 +112,11 @@ defmodule Mqttex.Test.SessionAdapter do
 			{:send, msg} -> 
 				send(channel, msg)
 				loop(channel, state)
-			{:drop_sender, msg} ->
-				new_sender = Mqttex.ProtocolManager.delete(state.senders, msg.msg_id)
+			{:drop_sender, msg_id} ->
+				new_sender = Mqttex.ProtocolManager.delete(state.senders, msg_id)
 				loop(channel, state.update(senders: new_sender))
-			{:drop_receiver, msg} ->
-				new_receiver = Mqttex.ProtocolManager.delete(state.receivers, msg.msg_id)
+			{:drop_receiver, msg_id} ->
+				new_receiver = Mqttex.ProtocolManager.delete(state.receivers, msg_id)
 				loop(channel, state.update(receivers: new_receiver))
 			{:on, msg} -> 
 				# :error_logger.info_msg("on_message: #{inspect msg}\nSending to #{inspect state.final}")
@@ -125,9 +132,18 @@ defmodule Mqttex.Test.SessionAdapter do
 				case Mqttex.ProtocolManager.dispatch_receiver(state.receivers, msg) do
 					:error ->
 						case Mqttex.ProtocolManager.dispatch_sender(state.senders, msg) do
-							:error -> 
-								# IO.puts ("MqttexSessionAdapter.loop: got unknown message #{inspect msg}")
+							:error ->
+								# TODO:
+								# We come here. This means, the message cannot not be identified
+								# to a running qos process. This should not happen. Why is this 
+								# so? 
+								# ==> Looks like a nasty interference of timeouts and async sends. 
+								# After a send release we drop the sender, but it should got the
+								# completed message and die afterwards. Including the removal 
+								# from qos map. Hmm. How to do this properly?
+								IO.puts ("MqttexSessionAdapter.loop #{inspect self}: got unknown message #{inspect msg}")
 								send(state.final, msg)
+								raise binary_to_atom("#{inspect msg}")
 							_ -> :ok
 						end
 					_ -> :ok
