@@ -34,6 +34,22 @@ defmodule Mqttex.SenderBehaviour do
 	defcallback send_release(term, Mqttex.PubRecMsg.t) :: integer
 
 
+	@doc """
+	Finishes the sender protocol. Usually this requires house-keeping activities for the 
+	process managing the protocol processes.
+	The first parameter is either a `pid` or an named process references for a genserver.
+	The second paramter is the `msg_id` of the protocol
+	"""
+	defcallback finish_sender(term, integer) :: :ok
+	@doc """
+	Finishes the receiver protocol. Usually this requires house-keeping activities for the 
+	process managing the protocol processes.
+	The first parameter is either a `pid` or an named process references for a genserver.
+	The second paramter is the `msg_id` of the protocol
+	"""
+	defcallback finish_receiver(term, integer) :: :ok
+
+
 	# Emtpy default implementations
 	defmacro __using__(_) do
     	quote location: :keep do
@@ -85,14 +101,15 @@ defmodule Mqttex.QoS0Sender do
 	"""
 
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
-	def start(Mqttex.PublishMsg[] = msg, queue_mod, sender) do
+	def start(Mqttex.PublishMsg[] = msg, mod, sender) do
 		receive do
-			:go -> send_msg(msg, queue_mod, sender)
+			:go -> send_msg(msg, mod, sender)
 		end
+		mod.finish_sender(sender, self)
 	end
 	
-	def send_msg(msg, queue_mod, sender) do
-		queue_mod.send_msg(sender, msg)
+	def send_msg(msg, mod, sender) do
+		mod.send_msg(sender, msg)
 		:ok
 	end
 end
@@ -105,6 +122,7 @@ defmodule Mqttex.QoS0Receiver do
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
 	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
 		mod.on_message(receiver, msg)
+		mod.finish_receiver(receiver, self)
 		:ok
 	end
 end
@@ -130,6 +148,7 @@ defmodule Mqttex.QoS1Sender do
 		receive do
 			:go -> send_msg(msg, id, mod, sender, :first)
 		end
+		mod.finish_sender(sender, self)
 	end
 	
 	def send_msg(msg, id, mod, sender, duplicate) do
@@ -158,6 +177,7 @@ defmodule Mqttex.QoS1Receiver do
 	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
 		mod.on_message(receiver, msg)
 		send_ack(msg.msg_id, mod, receiver)
+		mod.finish_receiver(receiver, self)
 	end
 
 	def send_ack(msg_id, mod, receiver) do
@@ -179,6 +199,7 @@ defmodule Mqttex.QoS2Sender do
 		receive do
 			:go -> send_msg(msg, mod, sender, :first)
 		end
+		mod.finish_sender(sender, self)
 	end
 	
 	@doc """
@@ -226,6 +247,7 @@ defmodule Mqttex.QoS2Receiver do
 	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
 #		mod.on_message(receiver, msg)
 		send_received(msg, msg.msg_id, mod, receiver, :first)
+		mod.finish_receiver(receiver, self)
 	end
 
 	def send_received(msg, msg_id, mod, receiver, _duplicate) do
