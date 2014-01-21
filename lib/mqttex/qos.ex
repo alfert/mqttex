@@ -33,7 +33,6 @@ defmodule Mqttex.SenderBehaviour do
 	"""
 	defcallback send_release(term, Mqttex.PubRecMsg.t) :: integer
 
-
 	@doc """
 	Finishes the sender protocol. Usually this requires house-keeping activities for the 
 	process managing the protocol processes.
@@ -41,6 +40,7 @@ defmodule Mqttex.SenderBehaviour do
 	The second paramter is the `msg_id` of the protocol
 	"""
 	defcallback finish_sender(term, integer) :: :ok
+	
 	@doc """
 	Finishes the receiver protocol. Usually this requires house-keeping activities for the 
 	process managing the protocol processes.
@@ -84,13 +84,15 @@ defmodule Mqttex.ReceiverBehaviour do
 	@doc """
 	Message callback: Sends the message to given pid, when a message arrives and qos is completed
 	"""
-	defcallback onMessage(pid) :: :ok
+	defcallback on_message(pid, term) :: :ok
 
 	defmacro __using__(_) do
 		quote location: :keep do
-			def onMessage(pid) do
-				:error_logger.error_msg("Unimplemented onMessage")
+			def on_message(_pid, _msg) do
+				:error_logger.error_msg("Unimplemented  #{__MODULE__}.on_message")
 			end
+
+			defoverridable [on_message: 2]
 		end
 	end
 end
