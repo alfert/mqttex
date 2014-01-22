@@ -65,7 +65,7 @@ defmodule Mqttex.Server do
 	"""
 	@spec ping(pid, Mqttex.PingReqMsg.t) :: Mqttex.PingRespMsg
 	def ping(server, Mqttex.PingReqMsg[] = _ping_req) do
-		:error_code.error_msg("Deprecated call")
+		:error_logger.error_msg("Deprecated call")
 		:pong =  :gen_fsm.sync_send_event(server, :ping)
 		Mqttex.PingRespMsg.new
 	end
@@ -75,7 +75,7 @@ defmodule Mqttex.Server do
 	"""
 	@spec disconnect(pid, Mqttex.DisconnectMsg.t) :: :ok
 	def disconnect(server, disconnect_msg) do
-		:error_code.error_msg("Deprecated call")
+		:error_logger.error_msg("Deprecated call")
 		:gen_fsm.send_event(server, {:receive, disconnect_msg})
 	end
 
@@ -185,14 +185,14 @@ defmodule Mqttex.Server do
 	#############################################################################################
 
 	@doc "Events in state `clean_session` with replies"
-	def clean_session({:send, msg}, ConnectionState[client_proc: client, connection: con] = state) do
+	def clean_session({:send, msg}, _from, ConnectionState[client_proc: client, connection: con] = state) do
 		# Send the message directly to the client and calculate the new timeout
 		timeout = calc_timeout(msg, state)
 		send(client, msg)
 		new_state = state.update(timeout: timeout)
 		{:reply, timeout, :clean_session, new_state, con.keep_alive_server}
 	end
-		def clean_session(:ping, _from, ConnectionState[connection: con]=state) do
+	def clean_session(:ping, _from, ConnectionState[connection: con]=state) do
 		{:reply, :pong, :clean_session, state, con.keep_alive_server}
 	end
 	
@@ -203,10 +203,8 @@ defmodule Mqttex.Server do
 
 	@doc "Event in state `clean_session` without a reply"
 	def clean_session({:receive, Mqttex.PublishMsg[] = msg}, ConnectionState[connection: con] = state) do
-		# TODO: 
 		# initiate a new protocol for receiving a published message
 		# sending to the TopicManager is the task of the on_message callback!!!
-		# 
 		new_rec = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
 		{:next_state, :clean_session, state, state.connection.keep_alive_server}
 	end
@@ -215,11 +213,9 @@ defmodule Mqttex.Server do
 		Mqttex.ProtocolManager.dispatch_receiver(receivers, msg)
 		{:next_state, :clean_session, state, state.connection.keep_alive_server}
 	end
-	def clean_session({:receive, Mqttex.DisconnectMsg[] = _msg}, ConnectionState[]=state) do
-		# TODO: call unsubscribe all topics
-		
-		# no timeout here, we wait forever
-		{:next_state, :clean_disconnect, state, state.connection.keep_alive_server}
+	def clean_session({:receive, Mqttex.PingReqMsg[] = _msg}, ConnectionState[connection: con]=state) do
+		send(state.client_proc, Mqttex.PingRespMsg.new)
+		{:next_state, :clean_session, state, con.keep_alive_server}
 	end
 	def clean_session({:receive, Mqttex.SubscribeMsg[] = topics}, ConnectionState[]=state) do
 		# subscribe to topics at the subscription server
@@ -238,11 +234,19 @@ defmodule Mqttex.Server do
 		new_state = state
 		{:next_state, :clean_session, new_state, new_state.connection.keep_alive_server}
 	end
+	def clean_session({:receive, Mqttex.DisconnectMsg[] = _msg}, ConnectionState[]=state) do
+		# TODO: call unsubscribe all topics
+		
+		# no timeout here, we wait forever
+		{:next_state, :clean_disconnect, state, state.connection.keep_alive_server}
+	end
 	########################################################################################
 	### All messages coming from the inside and the protocol handling
 	########################################################################################
 	# a lot missing here
 	def clean_session({:publish, Mqttex.PublishMsg[] = msg}, ConnectionState[] = state) do
+		# publish the message towards the client
+		# sending is delegated to the QoS protocol 
 		new_sender = Mqttex.ProtocolManager.sender(state.senders, msg, __MODULE__, self)
 		new_state = state.update(senders: new_sender)
 		{:next_state, :clean_session, new_state, state.connection.keep_alive_server}
@@ -270,6 +274,12 @@ defmodule Mqttex.Server do
 		{:reply, reply, s, new_state_data, new_state_data.connection.keep_alive_server}
 	end
 	def clean_disconnect(any_msg, _from, ConnectionState[]=state) do
+		:error_logger.error_msg("Disconnected Server #{state.connection.client_id} got message #{inspect any_msg}")
+		{:next_state, :clean_disconnect, state}
+	end
+
+	@doc "Received messages in the disconnected state are simply ignored"
+	def clean_disconnect(any_msg, ConnectionState[]=state) do
 		:error_logger.error_msg("Disconnected Server #{state.connection.client_id} got message #{inspect any_msg}")
 		{:next_state, :clean_disconnect, state}
 	end
