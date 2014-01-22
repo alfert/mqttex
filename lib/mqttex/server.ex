@@ -12,8 +12,17 @@ defmodule Mqttex.Server do
 
 	use GenFSM.Behaviour
 	@my_name __MODULE__
+	@default_timeout 100 # 100m milliseconds timeout 
 
-	defrecord ConnectionState, connection: :none, client_proc: :none, out_queue: :none, subscriptions: []
+	use Mqttex.SenderBehaviour
+	use Mqttex.ReceiverBehaviour
+
+	defrecord ConnectionState, connection: :none, 
+		client_proc: :none,
+		timeout: @default_timeout, 
+		subscriptions: [],
+		senders: Mqttex.ProtocolManager.new(), 
+		receivers: Mqttex.ProtocolManager.new()
 
 	#### API of the server
 	@doc """
@@ -25,7 +34,7 @@ defmodule Mqttex.Server do
 	@spec connect(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def connect(Mqttex.Connection[] = connection, client_proc // self()) do
 		value = case Mqttex.SupServer.start_server(connection, client_proc) do
-			{:error, {:already_started, pid}} -> reconnect(pid, connection, client_proc)
+			{:error, {:already_started, pid}} -> reconnect(pid, connection, client_proc) 
 			any -> any
 		end
 		case value do 
@@ -34,16 +43,40 @@ defmodule Mqttex.Server do
 		end
 	end
 
+	@doc """
+	Is called to receive an outbound message, i.e. the message must be a valid
+	MQTT message. The functions sends the message asynchronously to the 
+	session and returns immediatly.
+	"""
+	def receive(server, Mqttex.PublishMsg[] = msg), do: do_receive(server, msg)
+	def receive(server, Mqttex.SubscribeMsg[] = msg), do: do_receive(server, msg)
+	def receive(server, Mqttex.UnSubscribeMsg[] = msg), do: do_receive(server, msg)
+	def receive(server, Mqttex.PingReqMsg[] = msg), do: do_receive(server, msg)
+	def receive(server, Mqttex.DisconnectMsg[] = msg), do: do_receive(server, msg)
+	def receive(server, Mqttex.PubRelMsg[] = msg), do: do_receive(server, msg)
 	
+	# internal function sending the message to the server
+	defp do_receive(server, msg) do
+		:gen_fsm.send_event(server, {:receive, msg})
+	end
+
+	@doc """
+	Deprecated call to simulate a ping message.
+	"""
 	@spec ping(pid, Mqttex.PingReqMsg.t) :: Mqttex.PingRespMsg
 	def ping(server, Mqttex.PingReqMsg[] = _ping_req) do
+		:error_code.error_msg("Deprecated call")
 		:pong =  :gen_fsm.sync_send_event(server, :ping)
 		Mqttex.PingRespMsg.new
 	end
 	
+	@doc """
+	Deprecated call to disconnect the server.
+	"""
 	@spec disconnect(pid, Mqttex.DisconnectMsg.t) :: :ok
-	def disconnect(server, _diconnect_msg) do
-		:gen_fsm.send_event(server, :disconnect)
+	def disconnect(server, disconnect_msg) do
+		:error_code.error_msg("Deprecated call")
+		:gen_fsm.send_event(server, {:receive, disconnect_msg})
 	end
 
 	@doc "Internal function for stopping the server"
@@ -51,24 +84,82 @@ defmodule Mqttex.Server do
 	def stop(server) do
 		:gen_fsm.send_all_state_event(server, :stop)
 	end
-	
-	@spec subscribe(pid, Mqttex.SubscribeMsg.t) :: Mqttex.SubAckMsg
-	def subscribe(server, Mqttex.SubscribeMsg[]=topics) do
-		:gen_fsm.sync_send_event(server, {:subscribe, topics})
-	end
-	
-	@spec unsubscribe(pid, Mqttex.UnSubscribeMsg.t) :: Mqttex.SubAckMsg
-	def unsubscribe(server, Mqttex.UnSubscribeMsg[]=topics) do
-		:gen_fsm.sync_send_event(server, {:unsubscribe, topics})
+
+	@doc """
+	Publishes a message to be send to the client. This is called 
+	from the `Topic`. 
+	"""	
+	def publish(server, topic, body, qos) do
+		header = Mqttex.FixedHeader.new([qos: qos])
+		msg = Mqttex.PublishMsg.new([header: header, topic: topic, message: body])
+		:gen_fsm.send_event(server, {:publish, msg})
 	end
 
-	@doc "Sends a message from the server to client, ie a message from a topic"
-	def send_msg(session, content) do
-		:gen_fsm.send_event(session, {:send, content})
+	#############################################################################################
+	#### Callbacks from QoS Behaviours
+	#############################################################################################
+	@doc """
+	Sends a messages to the client side and returns the new timeout. Only called from a QoS protocol 
+	process, not part of the general API.  
+	"""
+	def send_msg(server, msg) do
+		:gen_fsm.sync_send_event(server, {:send, msg})
 	end
+	@doc """
+	Sends the received message and returns the new timeout. Only called from a QoS protocol process, 
+	not part of the general API.
+	"""
+	def send_received(server, msg) do
+		:gen_fsm.sync_send_event(server, {:send, msg})
+	end
+	@doc """
+	Sends the release message and returns the new timeout. Only called from a QoS protocol process, 
+	not part of the general API.
+	"""
+	def send_release(server, msg) do
+		:gen_fsm.sync_send_event(server, {:send, msg})
+	end
+	@doc """
+	Sends the complete message and returns the new timeout. Only called from a QoS protocol process, 
+	not part of the general API.
+	"""
+	def send_complete(server, msg) do
+		:gen_fsm.sync_send_event(server, {:send, msg})
+	end
+	@doc """
+	Finishes a sender protocol process. Only called from a QoS protocol process, 
+	not part of the general API.
+	"""
+	def finish_sender(server, msg_id) do
+		:gen_fsm.send_event(server, {:drop_sender, msg_id})
+	end
+	@doc """
+	Finishes a receiver protocol process. Only called from a QoS protocol process, 
+	not part of the general API.
+	"""
+	def finish_receiver(server, msg_id) do
+		:gen_fsm.send_event(server, {:drop_receiver, msg_id})
+	end
+	
+	@doc """
+	Finally receives the regular message for delivery to a topic. Only called from a QoS 
+	protocol process, not part of the general API.
+	"""
+	def on_message(server, msg) do
+		:gen_fsm.send_event(server, {:on, msg})		
+	end
+
+
 	#############################################################################################
 	#### Internal functions
 	#############################################################################################
+
+	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
+	def start_link( Mqttex.Connection[] = connection, client_proc // self()) do
+		IO.puts "#{__MODULE__}.start_link for #{connection.client_id}"
+		:gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc},
+									[timeout: connection.keep_alive_server])
+	end
 
 	@doc "Initializes the FSM"
 	def init({connection, client_proc}) do
@@ -89,45 +180,83 @@ defmodule Mqttex.Server do
 	
 	
 
-	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
-	def start_link( Mqttex.Connection[] = connection, client_proc // self()) do
-		IO.puts "#{__MODULE__}.start_link for #{connection.client_id}"
-		:gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc},
-									[timeout: connection.keep_alive_server])
-	end
-
 	#############################################################################################
 	#### Event/State Handling
 	#############################################################################################
 
 	@doc "Events in state `clean_session` with replies"
-	def clean_session(:ping, _from, ConnectionState[]=state) do
-		{:reply, :pong, :clean_session, state, state.connection.keep_alive_server}
+	def clean_session({:send, msg}, ConnectionState[client_proc: client, connection: con] = state) do
+		# Send the message directly to the client and calculate the new timeout
+		timeout = calc_timeout(msg, state)
+		send(client, msg)
+		new_state = state.update(timeout: timeout)
+		{:reply, timeout, :clean_session, new_state, con.keep_alive_server}
 	end
-	def clean_session({:subscribe, topics}, from, ConnectionState[]=state) do
-		# subscribe to topics at the subscription server
-		#   -> the server adds all existing topics 
+		def clean_session(:ping, _from, ConnectionState[connection: con]=state) do
+		{:reply, :pong, :clean_session, state, con.keep_alive_server}
 	end
-	def clean_session({:unsubscribe, topics}, from, ConnectionState[]=state) do
-	end
+	
+
+	########################################################################################
+	### All messages coming from the outside as MQTT-Messages ({:receive, msg})
+	########################################################################################
 
 	@doc "Event in state `clean_session` without a reply"
+	def clean_session({:receive, Mqttex.PublishMsg[] = msg}, ConnectionState[connection: con] = state) do
+		# TODO: 
+		# initiate a new protocol for receiving a published message
+		# sending to the TopicManager is the task of the on_message callback!!!
+		# 
+		new_rec = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
+		{:next_state, :clean_session, state, state.connection.keep_alive_server}
+	end
+	def clean_session({:receive, Mqttex.PubRelMsg = msg}, ConnectionState[receivers: receivers] = state) do
+		# delegate to the receivers
+		Mqttex.ProtocolManager.dispatch_receiver(receivers, msg)
+		{:next_state, :clean_session, state, state.connection.keep_alive_server}
+	end
+	def clean_session({:receive, Mqttex.DisconnectMsg[] = _msg}, ConnectionState[]=state) do
+		# TODO: call unsubscribe all topics
+		
+		# no timeout here, we wait forever
+		{:next_state, :clean_disconnect, state, state.connection.keep_alive_server}
+	end
+	def clean_session({:receive, Mqttex.SubscribeMsg[] = topics}, ConnectionState[]=state) do
+		# subscribe to topics at the subscription server
+		#   -> the server adds all existing topics 
+		# send the status of freshly subscribed topics back to the client
+		
+		# TODO: return the new_state
+		new_state = state
+		{:next_state, :clean_session, new_state, new_state.connection.keep_alive_server}
+	end
+	def clean_session({:receive, Mqttex.UnSubscribeMsg[] = topics}, ConnectionState[]=state) do
+		# unsubscribe to topics at the subscription server
+		#   -> the server drops all existing topics 
+		
+		# TODO: return the new_state
+		new_state = state
+		{:next_state, :clean_session, new_state, new_state.connection.keep_alive_server}
+	end
+	########################################################################################
+	### All messages coming from the inside and the protocol handling
+	########################################################################################
+	# a lot missing here
+	def clean_session({:publish, Mqttex.PublishMsg[] = msg}, ConnectionState[] = state) do
+		new_sender = Mqttex.ProtocolManager.sender(state.senders, msg, __MODULE__, self)
+		new_state = state.update(senders: new_sender)
+		{:next_state, :clean_session, new_state, state.connection.keep_alive_server}
+	end
+	
+	########################################################################################
+	### Finally: timeout - the client does not respond fast enough
+	########################################################################################
 	def clean_session(:timeout, ConnectionState[]=state) do
 		# TODO: Publish Will Message if required
 		# TODO: call unsubscribe all topics
 
 		# no timeout here, we wait forever
 		{:next_state, :clean_disconnect, state}
-	end
-	def clean_session(:disconnect, ConnectionState[]=state) do
-		# TODO: call unsubscribe all topics
-		
-		# no timeout here, we wait forever
-		{:next_state, :clean_disconnect, state}
-	end
-	def clean_session({:send_msg, content}, ConnectionState[client_proc: client]=state) do
-		send(client, content)
-		{:next_state, :clean_session, state}
 	end
 	
 	
@@ -159,7 +288,15 @@ defmodule Mqttex.Server do
 	def handle_event(:stop, state, ConnectionState[] = state_data) do
 		{:next_state, state, state_data}
 	end
-		
+
+	@doc "Terminaction call back"
+	def terminate(reason, state, ConnectionState[connection: con] = state_data) do
+		IO.puts "Shutting down for reason #{reason} in state #{state} for connection #{con.client_id}"
+	end		
+
+	########################################################################################
+	### Helper functions
+	########################################################################################
 
 	@doc "Checks the connection"
 	@spec check_connection(Mqttex.Connection.t) :: Mqttex.conn_ack_type
@@ -170,9 +307,12 @@ defmodule Mqttex.Server do
 		:ok
 	end
 	
-	@doc "Terminaction call back"
-	def terminate(reason, state, ConnectionState[connection: con] = state_data) do
-		IO.puts "Shutting down for reason #{reason} in state #{state} for connection #{con.client_id}"
+	@doc """
+	Calculates the new timeout depending on the last retries (in the future). 
+	The default implementation is to return a constant value.
+	"""
+	def calc_timeout(msg, ConnectionState[timeout: timeout] = _state) do
+		timeout
 	end
 	
 
