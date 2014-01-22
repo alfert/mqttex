@@ -156,7 +156,7 @@ defmodule Mqttex.Server do
 
 	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def start_link( Mqttex.Connection[] = connection, client_proc // self()) do
-		IO.puts "#{__MODULE__}.start_link for #{connection.client_id}"
+		:error_logger.info_msg "#{__MODULE__}.start_link for #{connection.client_id}"
 		:gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc},
 									[timeout: connection.keep_alive_server])
 	end
