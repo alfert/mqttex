@@ -10,6 +10,7 @@ defmodule Mqttex.Supervisor do
 
     def init([]) do
         children = [
+            supervisor(Mqttex.SupClient, [],restart: :permanent),
             supervisor(Mqttex.SupServer, [],restart: :permanent),
             supervisor(Mqttex.SupTopic, [],restart: :permanent),
             worker(Mqttex.TopicManager, [], restart: :permanent)
