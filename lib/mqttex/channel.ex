@@ -135,7 +135,7 @@ defmodule Mqttex.Test.SessionAdapter do
 							:error ->
 								IO.puts ("MqttexSessionAdapter.loop #{inspect self}: got unknown message #{inspect msg}")
 								send(state.final, msg)
-								raise binary_to_atom("#{inspect msg}")
+								# raise binary_to_atom("#{inspect msg}")
 							_ -> :ok
 						end
 					_ -> :ok
