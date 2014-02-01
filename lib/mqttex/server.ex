@@ -206,7 +206,7 @@ defmodule Mqttex.Server do
 		# initiate a new protocol for receiving a published message
 		# sending to the TopicManager is the task of the on_message callback!!!
 		new_rec = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
-		{:next_state, :clean_session, state, state.connection.keep_alive_server}
+		{:next_state, :clean_session, state.update(receivers: new_rec), state.connection.keep_alive_server}
 	end
 	def clean_session({:receive, Mqttex.PubRelMsg = msg}, ConnectionState[receivers: receivers] = state) do
 		# delegate to the receivers
