@@ -10,6 +10,10 @@ defmodule Mqttex.TestChannel do
 			{:register, receiver} -> 
 				s = Dict.put(state, :receiver, receiver)
 				channel(s)
+			{:register, receiver, mod} -> 
+				s = Dict.put(state, :receiver, receiver)
+				s1 = Dict.put(s, :mod, mod)
+				channel(s1)
 			any -> 
 				case state[:receiver] do
 					nil -> # don't do any thing
@@ -23,12 +27,20 @@ defmodule Mqttex.TestChannel do
 						#IO.puts ("lossRnd = #{lossRnd}")
 						# IO.puts ("state = #{inspect state}")
 						if (state[:loss] < lossRnd) do
-							send(receiver, any)
+							send_msg(receiver, any, state)
 						else
 							# :error_logger.error_msg "Swallow the message #{inspect any}"
 						end
 						channel(state)
 				end
+		end
+	end
+
+	@doc "Sends a message, either directly or via the receiver api"
+	def send_msg(receiver, msg, state) do
+		case state[:mod] do
+			nil -> send(receiver, msg)
+			mod -> mod.receive(receiver, msg)
 		end
 	end
 
