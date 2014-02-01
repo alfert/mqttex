@@ -3,41 +3,63 @@ defmodule MqttexClientTest do
 	use ExUnit.Case
 
 	test "Connect a client and send FaF" do
-		{out_channel, in_channel} = setupQueue()
-		{:ok, client} = Mqttex.Client.connect("nobody", "passwd", self, out_channel)
-		send(in_channel, {:register, client, Mqttex.Client})
-
+	  	{client, server} = connect("nobody", "passwd")
 		body = "Message"
-
 		Mqttex.Client.publish(client, "topic", body, :fire_and_forget)
 
 		assert_receive (Mqttex.PublishMsg[message: ^body])
 	end
 
 	test "Connect a client and send ALO" do
-		{out_channel, in_channel} = setupQueue()
-		{:ok, client} = Mqttex.Client.connect("nobody", "passwd", self, out_channel)
-		send(in_channel, {:register, client, Mqttex.Client})
-
+	  	{client, server} = connect("nobody", "passwd")
 		body = "ALO Message"
-
 		Mqttex.Client.publish(client, "topic", body, :at_least_once)
 
 		assert_receive (Mqttex.PublishMsg[message: ^body])
 	end
 
 	test "Connect a client and send AMO" do
-		{out_channel, in_channel} = setupQueue()
-		{:ok, client} = Mqttex.Client.connect("nobody", "passwd", self, out_channel)
-		send(in_channel, {:register, client, Mqttex.Client})
-
+	  	{client, server} = connect("nobody", "passwd")
 		body = "ALO Message"
-
 		Mqttex.Client.publish(client, "topic", body, :at_most_once)
 
 		assert_receive (Mqttex.PublishMsg[message: ^body])
 	end
 
+
+	test "Receive a published Message (FaF)" do
+		{client, server} = connect("nobody", "passwd")
+		body = "FaF Message"
+		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :fire_and_forget)
+
+		assert_receive (Mqttex.PublishMsg[message: ^body])
+	end
+
+	test "Receive a published Message (ALO)" do
+		{client, server} = connect("nobody", "passwd")
+		body = "ALO Message"
+		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :at_least_once)
+
+		assert_receive (Mqttex.PublishMsg[message: ^body])
+	end
+
+	test "Receive a published Message (AMO)" do
+		{client, server} = connect("nobody", "passwd")
+		body = "ALO Message"
+		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :at_most_once)
+
+		assert_receive (Mqttex.PublishMsg[message: ^body])
+	end
+
+	@doc """
+	Configures the client and the test adapters. Returns client and server, respectively
+	"""
+	def connect(user, passwd) do
+		{out_channel, in_channel, server} = setupQueue()
+		{:ok, client} = Mqttex.Client.connect(user, passwd, self, out_channel)
+		send(in_channel, {:register, client, Mqttex.Client})
+		{client, server}		
+	end
 
 	@doc """
 	Does the setup for all channels, receivers. Parameters:
@@ -71,7 +93,7 @@ defmodule MqttexClientTest do
 		IO.puts "Receiver Session is #{inspect sessionReceiver}"
   		IO.puts "Final Receiver is   #{inspect final_receiver_pid}"
 
-		{chSender, chReceiver}
+		{chSender, chReceiver, sessionReceiver}
 	end
 
 end

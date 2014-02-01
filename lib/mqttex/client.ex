@@ -111,9 +111,14 @@ defmodule Mqttex.Client do
 		send(client, msg)
 		{:noreply, state, state.timeout}
 	end
-	def handle_cast({:receive, Mqttex.PubAckMsg[] = msg}, state), do: dispatch_send(msg, state)
-	def handle_cast({:receive, Mqttex.PubRecMsg[] = msg}, state), do: dispatch_send(msg, state)
-	def handle_cast({:receive, Mqttex.PubCompMsg[] = msg}, state), do: dispatch_send(msg, state)
+	def handle_cast({:receive, Mqttex.PublishMsg[] = msg}, state) do 
+		new_receiver = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
+		{:noreply, state.update(receivers: new_receiver), state.timeout}
+	end
+	def handle_cast({:receive, Mqttex.PubAckMsg[] = msg}, state), do: dispatch_sender(msg, state)
+	def handle_cast({:receive, Mqttex.PubRecMsg[] = msg}, state), do: dispatch_sender(msg, state)
+	def handle_cast({:receive, Mqttex.PubCompMsg[] = msg}, state), do: dispatch_sender(msg, state)
+	def handle_cast({:receive, Mqttex.PubRelMsg[] = msg}, state), do: dispatch_receiver(msg, state)
 	def handle_cast({:drop_receiver, msg_id}, ClientState[receivers: receivers] = state) do
 		new_receiver = Mqttex.ProtocolManager.delete(state.receivers, msg_id)
 		{:noreply, state.update(receivers: new_receiver), state.timeout}
@@ -123,11 +128,11 @@ defmodule Mqttex.Client do
 		{:noreply, state.update(sender: new_sender), state.timeout}
 	end
 	
-	defp dispatch_receive(msg, ClientState[receivers: receivers] = state) do
+	defp dispatch_receiver(msg, ClientState[receivers: receivers] = state) do
 		:ok = Mqttex.ProtocolManager.dispatch_receiver(receivers, msg)
-		{:noreply, state.timeout}
+		{:noreply, state, state.timeout}
 	end
-	defp dispatch_send(msg, ClientState[senders: senders] = state) do
+	defp dispatch_sender(msg, ClientState[senders: senders] = state) do
 		:ok = Mqttex.ProtocolManager.dispatch_sender(senders, msg)
 		{:noreply, state, state.timeout}
 	end
@@ -148,8 +153,10 @@ defmodule Mqttex.Client do
 	#### API from the Channels
 	#############################################################################################
 
+	def receive(server, Mqttex.PublishMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PubAckMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PubRecMsg[]= msg), do: do_receive(server, msg)
+	def receive(server, Mqttex.PubRelMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PubCompMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.ConnAckMsg[]= msg), do: do_receive(server, msg)
 	
