@@ -12,20 +12,6 @@ defmodule MqttexTest do
 		refute Process.alive? server
 	end
 
-	test "B start server and ping it" do
-		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
-		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
-		assert(is_pid(server))
-		ref = Process.monitor server
-
-		ping = Mqttex.PingReqMsg.new
-		assert Mqttex.Server.ping(server, ping) == Mqttex.PingRespMsg[]
-
-		assert Mqttex.Server.stop(server) == :ok
-		wait_for_server_shutdown(ref)
-		refute Process.alive? server
-	end
-
 	test "BA start server and ping it with messages" do
 		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
 		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
@@ -36,24 +22,6 @@ defmodule MqttexTest do
 		assert Mqttex.Server.receive(server, ping) == :ok
 
 		assert_receive Mqttex.PingRespMsg[]
-
-		assert Mqttex.Server.stop(server) == :ok
-		wait_for_server_shutdown(ref)
-		refute Process.alive? server
-	end
-
-	test "C start server and reconnect" do
-		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
-		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
-		assert(is_pid(server))
-		ref = Process.monitor server
-
-		dis = Mqttex.DisconnectMsg.new
-		assert Mqttex.Server.disconnect(server, dis) == :ok
-
-		{ack, s} = Mqttex.Server.connect(connection, self)
-		assert ack == Mqttex.ConnAckMsg.new
-		assert s == server
 
 		assert Mqttex.Server.stop(server) == :ok
 		wait_for_server_shutdown(ref)
@@ -78,23 +46,6 @@ defmodule MqttexTest do
 		refute Process.alive? server
 	end
 
-	test "D disconnect server and ping" do
-		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
-		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(connection, self)
-		assert(is_pid(server))
-		ref = Process.monitor server
-
-		dis = Mqttex.DisconnectMsg.new
-		assert Mqttex.Server.disconnect(server, dis) == :ok
-
-		ping = Mqttex.PingReqMsg.new	
-		assert catch_exit(Mqttex.Server.ping(server, ping)) == {:timeout,  
-			{:gen_fsm, :sync_send_event, [server, :ping]}}
-
-		assert Mqttex.Server.stop(server) == :ok
-		wait_for_server_shutdown(ref)
-		refute Process.alive? server
-	end
 
 	test "DA disconnect server and ping with messages" do
 		client_id = "MqttexTest A"
