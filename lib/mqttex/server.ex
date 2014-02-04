@@ -32,7 +32,7 @@ defmodule Mqttex.Server do
 	the reconnection can be executed. Otherwise an error occurs.
 	"""
 	@spec connect(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
-	def connect(Mqttex.Connection[] = connection, client_proc // self()) do
+	def connect(Mqttex.ConnectionMsg[connection: connection] = con, client_proc // self()) do
 		value = case Mqttex.SupServer.start_server(connection, client_proc) do
 			{:error, {:already_started, pid}} -> reconnect(pid, connection, client_proc) 
 			any -> any
@@ -213,8 +213,8 @@ defmodule Mqttex.Server do
 		Mqttex.ProtocolManager.dispatch_receiver(receivers, msg)
 		{:next_state, :clean_session, state, state.connection.keep_alive_server}
 	end
-	def clean_session({:receive, Mqttex.PingReqMsg[] = _msg}, ConnectionState[connection: con]=state) do
-		send(state.client_proc, Mqttex.PingRespMsg.new)
+	def clean_session({:receive, Mqttex.PingReqMsg[] = _msg}, ConnectionState[client_proc: client, connection: con]=state) do
+		send(client, Mqttex.PingRespMsg.new)
 		{:next_state, :clean_session, state, con.keep_alive_server}
 	end
 	def clean_session({:receive, Mqttex.SubscribeMsg[] = topics}, ConnectionState[]=state) do
@@ -250,6 +250,11 @@ defmodule Mqttex.Server do
 		new_sender = Mqttex.ProtocolManager.sender(state.senders, msg, __MODULE__, self)
 		new_state = state.update(senders: new_sender)
 		{:next_state, :clean_session, new_state, state.connection.keep_alive_server}
+	end
+	def clean_session({:on, msg}, ConnectionState[] = state) do
+		# TODO: Send the message to the Topic Master
+		IO.puts "Yeah: Got this message #{inspect msg}"
+		{:next_state, :clean_session, state, state.connection.keep_alive_server}
 	end
 	
 	########################################################################################

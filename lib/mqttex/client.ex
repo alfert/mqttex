@@ -13,7 +13,8 @@ defmodule Mqttex.Client do
 	defrecord Connection, 
 		server: "",
 		protocol: :tcp,
-		port: 1178
+		port: 1178, 
+		module: nil		# a channel module
 
 	defrecord ClientState, 
 		client_proc: :none,
@@ -78,9 +79,12 @@ defmodule Mqttex.Client do
 	@spec start_link(Mqttex.Connection.t, pid, pid | Connection.t) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def start_link(Mqttex.Connection[] = connection, client_proc // self(), network_channel) do
 		:error_logger.info_msg "#{__MODULE__}.start_link for #{connection.client_id}"
-		:gen_server.start_link({:global, connection.client_id}, @my_name, 
+		{:ok, pid} = :gen_server.start_link({:global, connection.client_id}, @my_name, 
 									{connection, client_proc, network_channel},
 									[timeout: connection.keep_alive_server])
+		con_msg = Mqttex.ConnectionMsg.new([connection: connection])
+		send_msg(pid, con_msg)
+		{:ok, pid}
 	end
 
 	@spec init({Mqttex.Connection.t, pid, pid | Connection.t}) :: {:ok, ClientState.t}
@@ -89,17 +93,21 @@ defmodule Mqttex.Client do
 		state = ClientState.new([client_proc: client_proc, out_fun: out])
 		{:ok, state, state.timeout}
 	end
-	def init({connection, client_proc, network_channel}) do
+	def init({connection, client_proc, Connection[module: mod] = network_channel}) do
 		# TODO : make a TCP connection and store a sender function in out
-		socket = :blabla.connect()
-		out = fn(msg) -> :blabla.send(socket, msg) end
+
+		# use the module in network_channel as callback. Define a 
+		# behaviour for the various client network options.
+
+		channel = mod.start_channel(network_channel, self)
+		out = fn(msg) -> send(channel, msg) end
 		state = ClientState.new([client_proc: client_proc, out_fun: out])
 		{:ok, state, state.timeout}		
 	end
 	
 
 	def handle_call({:send, msg}, _from, ClientState[out_fun: out_fun] = state) do
-		out_fun.(msg)
+		do_send_msg(msg, state)
 		{:reply, state.timeout, state, state.timeout}
 	end
 	
@@ -119,6 +127,10 @@ defmodule Mqttex.Client do
 	def handle_cast({:receive, Mqttex.PubRecMsg[] = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, Mqttex.PubCompMsg[] = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, Mqttex.PubRelMsg[] = msg}, state), do: dispatch_receiver(msg, state)
+	def handle_cast({:receive, Mqttex.ConnAckMsg[] = msg}, state) do
+		:ok = on_message(self, msg)
+		{:noreply, state, state.timeout}
+	end
 	def handle_cast({:drop_receiver, msg_id}, ClientState[receivers: receivers] = state) do
 		new_receiver = Mqttex.ProtocolManager.delete(state.receivers, msg_id)
 		{:noreply, state.update(receivers: new_receiver), state.timeout}
@@ -141,12 +153,17 @@ defmodule Mqttex.Client do
 	def handle_info(:timeout, ClientState[] = state) do
 		# start a ping request
 		ping = Mqttex.PingReqMsg.new
-		send_msg(self, ping)		
+		do_send_msg(ping, state)		
 		{:noreply, state, state.timeout}
 	end
 	def handle_info(msg, state) do
 		:error_logger.error_msg("Client #{inspect self}: Unknown Message received: #{inspect msg}")
 		{:noreply, state, state.timeout}
+	end
+
+	# Executes the send of a message as internal function
+	defp do_send_msg(msg, ClientState[out_fun: out_fun] = state) do
+		out_fun.(msg)
 	end
 
 	#############################################################################################

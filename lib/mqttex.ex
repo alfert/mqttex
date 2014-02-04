@@ -11,6 +11,24 @@ defmodule Mqttex do
   	end
   	
 
+  	def start_client() do
+  		IO.puts "Connecting client"
+  		con = Mqttex.Client.Connection.new(server: {127, 0, 0, 1}, module: Mqttex.TCP)
+  		{:ok, client} = Mqttex.Client.connect("any user", "passwd", self, con)
+  		IO.puts("Wating for ConnAck")
+  		receive do
+  			con_ack -> 
+  				IO.puts("Got ConnAck #{inspect con_ack}")
+  			after 1_000 -> 
+  				IO.puts("Still no ConnAck :-(")
+  		end
+
+  		IO.puts("Publishing <Hallo>")
+  		Mqttex.Client.publish(client, "topic", "Hallo", :fire_and_forget)
+  	end
+  	
+
+
   	@type qos_type :: :fire_and_forget | :ack_delivery | :assured_delivery
 	@type message_type :: :connect | :conn_ack | :publish | :pub_ack |
 						:pub_rec | :pub_rel | :pub_comp | :subscribe |
