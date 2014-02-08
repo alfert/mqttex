@@ -45,7 +45,8 @@ defmodule Mqttex.Client do
 	Disconnects from the MQTT Server
 	"""
 	def disconnect(server) do
-		
+		msg = Mqttex.DisconnectMsg.new
+		:gen_server.cast(server, {:disconnect, msg})
 	end
 	
 	@doc """
@@ -79,12 +80,16 @@ defmodule Mqttex.Client do
 	@spec start_link(Mqttex.Connection.t, pid, pid | Connection.t) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def start_link(Mqttex.Connection[] = connection, client_proc // self(), network_channel) do
 		:error_logger.info_msg "#{__MODULE__}.start_link for #{connection.client_id}"
-		{:ok, pid} = :gen_server.start_link({:global, connection.client_id}, @my_name, 
+		start_result = :gen_server.start_link({:global, connection.client_id}, @my_name, 
 									{connection, client_proc, network_channel},
 									[timeout: connection.keep_alive_server])
+		server = case start_result do
+			{:ok, pid} -> pid
+			{:error, {:already_started, pid}} -> pid
+		end
 		con_msg = Mqttex.ConnectionMsg.new([connection: connection])
-		send_msg(pid, con_msg)
-		{:ok, pid}
+		send_msg(server, con_msg)
+		{:ok, server}
 	end
 
 	@spec init({Mqttex.Connection.t, pid, pid | Connection.t}) :: {:ok, ClientState.t}
@@ -139,6 +144,11 @@ defmodule Mqttex.Client do
 		new_sender = Mqttex.ProtocolManager.delete(state.senders, msg_id)
 		{:noreply, state.update(sender: new_sender), state.timeout}
 	end
+	def handle_cast({:disconnect, msg}, ClientState[senders: senders] = state) do
+		# send directly the message and quit the server
+		do_send_msg(msg,state)
+		{:stop, {:shutdown, :disconnect}, state}
+	end
 	
 	defp dispatch_receiver(msg, ClientState[receivers: receivers] = state) do
 		:ok = Mqttex.ProtocolManager.dispatch_receiver(receivers, msg)
@@ -163,8 +173,14 @@ defmodule Mqttex.Client do
 
 	# Executes the send of a message as internal function
 	defp do_send_msg(msg, ClientState[out_fun: out_fun] = state) do
+		:error_logger.info_msg("Mqttex.Client.do_send: #{inspect msg}")
 		out_fun.(msg)
 	end
+
+	def terminate(reason, state) do
+		:error_logger.info_msg("Mqttex.Client.terminate with reason #{inspect reason} in #{inspect state}")
+	end
+	
 
 	#############################################################################################
 	#### API from the Channels

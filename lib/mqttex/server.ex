@@ -236,9 +236,9 @@ defmodule Mqttex.Server do
 	end
 	def clean_session({:receive, Mqttex.DisconnectMsg[] = _msg}, ConnectionState[]=state) do
 		# TODO: call unsubscribe all topics
-		
+		:error_logger.info_msg("Got Disconnect, going to disconnected mode")
 		# no timeout here, we wait forever
-		{:next_state, :clean_disconnect, state, state.connection.keep_alive_server}
+		{:next_state, :clean_disconnect, state}
 	end
 	########################################################################################
 	### All messages coming from the inside and the protocol handling
@@ -255,6 +255,16 @@ defmodule Mqttex.Server do
 		# TODO: Send the message to the Topic Master
 		IO.puts "Yeah: Got this message #{inspect msg}"
 		{:next_state, :clean_session, state, state.connection.keep_alive_server}
+	end
+	def clean_session({:drop_receiver, msg_id}, ConnectionState[receivers: receivers] = state) do
+		new_receiver = Mqttex.ProtocolManager.delete(state.receivers, msg_id)
+		{:next_state, :clean_session, state.update(receivers: new_receiver), 
+				state.connection.keep_alive_server}
+	end
+	def clean_session({:drop_sender, msg_id}, ConnectionState[senders: senders] = state) do
+		new_sender = Mqttex.ProtocolManager.delete(state.senders, msg_id)
+		{:next_state, :clean_session, state.update(senders: new_sender), 
+				state.connection.keep_alive_server}
 	end
 	
 	########################################################################################
