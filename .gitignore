@@ -3,3 +3,7 @@
 erl_crash.dump
 *.ez
 /docs
+/cover
+/ct-log
+*.sublime-*
+/variables-*
