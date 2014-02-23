@@ -12,7 +12,7 @@ defmodule Mqttex.Server do
 
 	use GenFSM.Behaviour
 	@my_name __MODULE__
-	@default_timeout 100 # 100m milliseconds timeout 
+	@default_timeout 500 # 100m milliseconds timeout 
 
 	use Mqttex.SenderBehaviour
 	use Mqttex.ReceiverBehaviour
@@ -156,8 +156,8 @@ defmodule Mqttex.Server do
 
 	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def start_link( Mqttex.Connection[] = connection, client_proc // self()) do
-		:error_logger.info_msg "#{__MODULE__}.start_link for #{connection.client_id}"
-		:gen_fsm.start_link({:global, connection.client_id}, @my_name, {connection, client_proc},
+		:error_logger.info_msg "#{__MODULE__}.start_link for `#{connection.client_id}'"
+		:gen_fsm.start_link({:global, "S" <> connection.client_id}, @my_name, {connection, client_proc},
 									[timeout: connection.keep_alive_server])
 	end
 
@@ -165,7 +165,7 @@ defmodule Mqttex.Server do
 	def init({connection, client_proc}) do
 		# TODO: check that the connection data is proper. Invalidity results in {:stop, error_code}, 
 		# where error_code is of type conn_ack_type
-		IO.puts "#{__MODULE__}.init"
+		:error_logger.info_msg "#{__MODULE__}.init in #{inspect self} for client_proc #{inspect client_proc}"
 		queue = nil # Mqttex.OutboundQueue.start_link(self, __MODULE__)
 		{:ok, :clean_session, 
 			ConnectionState.new([connection: connection, client_proc: client_proc, 
