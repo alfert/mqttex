@@ -5,7 +5,7 @@ defmodule Mqttex.Client do
 
 	use GenServer.Behaviour
 	@my_name __MODULE__
-	@default_timeout 100 # 100m milliseconds timeout 
+	@default_timeout 500 # 100m milliseconds timeout 
 
 	use Mqttex.SenderBehaviour
 	use Mqttex.ReceiverBehaviour
@@ -80,7 +80,7 @@ defmodule Mqttex.Client do
 	@spec start_link(Mqttex.Connection.t, pid, pid | Connection.t) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def start_link(Mqttex.Connection[] = connection, client_proc // self(), network_channel) do
 		:error_logger.info_msg "#{__MODULE__}.start_link for #{connection.client_id}"
-		start_result = :gen_server.start_link({:global, connection.client_id}, @my_name, 
+		start_result = :gen_server.start_link({:global, "C" <> connection.client_id}, @my_name, 
 									{connection, client_proc, network_channel},
 									[timeout: connection.keep_alive_server])
 		server = case start_result do
@@ -168,6 +168,7 @@ defmodule Mqttex.Client do
 	end
 	def handle_info(msg, state) do
 		:error_logger.error_msg("Client #{inspect self}: Unknown Message received: #{inspect msg}")
+		:error_logger.error_msg("Client #{inspect self}: State #{inspect state}")
 		{:noreply, state, state.timeout}
 	end
 
