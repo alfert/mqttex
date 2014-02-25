@@ -316,7 +316,8 @@ defmodule Mqttex.Server do
 
 	@doc "Terminaction call back"
 	def terminate(reason, state, ConnectionState[connection: con] = state_data) do
-		IO.puts "Shutting down for reason #{reason} in state #{state} for connection #{con.client_id}"
+		:error_logger.info_msg "Shutting down for reason #{inspect reason} " <> 
+			"in state #{inspect state} for connection #{inspect con.client_id}"
 	end		
 
 	########################################################################################
