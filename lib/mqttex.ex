@@ -26,8 +26,9 @@ defmodule Mqttex do
   		IO.puts("Publishing <Hallo>")
   		Mqttex.Client.publish(client, "topic", "Hallo", :fire_and_forget)
 
-  		IO.puts("Disconnecting ")
-  		Mqttex.Client.disconnect(client)
+  		IO.puts("I am not disconnected")
+  		# Mqttex.Client.disconnect(client)
+  		client
   	end
   	
 
