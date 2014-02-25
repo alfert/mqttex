@@ -132,6 +132,10 @@ defmodule Mqttex.Client do
 	def handle_cast({:receive, Mqttex.PubRecMsg[] = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, Mqttex.PubCompMsg[] = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, Mqttex.PubRelMsg[] = msg}, state), do: dispatch_receiver(msg, state)
+	def handle_cast({:receive, Mqttex.PingRespMsg[] = msg}, state) do
+		# nothing to do, timeout is set for starting next ping again
+		{:noreply, state, state.timeout}
+	end
 	def handle_cast({:receive, Mqttex.ConnAckMsg[] = msg}, state) do
 		:ok = on_message(self, msg)
 		{:noreply, state, state.timeout}
@@ -192,6 +196,7 @@ defmodule Mqttex.Client do
 	def receive(server, Mqttex.PubRecMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PubRelMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PubCompMsg[]= msg), do: do_receive(server, msg)
+	def receive(server, Mqttex.PingRespMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.ConnAckMsg[]= msg), do: do_receive(server, msg)
 	
 	defp do_receive(server, msg) do
