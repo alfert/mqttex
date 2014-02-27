@@ -62,7 +62,7 @@ defmodule Mqttex.Topic do
 	end
 	def handle_call({:unsubscribe, client}, _from, State[subscriptions: subs] = state) do
 		new_subs = Enum.filter(subs, 
-				fn {^client, _} -> false 
+				fn {c, _} when c == client-> false 
 					_          -> true end)
 		new_state = state.subscriptions new_subs
 		{:reply, :ok, new_state}
@@ -76,8 +76,8 @@ defmodule Mqttex.Topic do
 	### Internal Implementation
 	####################################################################################
 
-	def send_msg(session, content, :fire_and_forget) do
-		Mqttex.Server.send_msg(session, content, :fire_and_forget)
+	def send_msg(session, content, qos) do
+		Mqttex.Server.send_msg(session, content, qos)
 	end
 
 end
