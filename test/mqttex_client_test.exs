@@ -67,7 +67,7 @@ defmodule MqttexClientTest do
 	* `loss`: the amount of message loss in percent. Defaults to `0` 
 	* `final_receiver_pid`: the final receiver of the message, defaults to `self`
 	"""
-	def setupQueue(loss // 0, final_receiver_pid // self) do
+	def setupQueue(loss \\ 0, final_receiver_pid \\ self) do
 		if (loss == 0) do
 			IO.puts "Setting up channels"
 		else

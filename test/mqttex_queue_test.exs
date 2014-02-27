@@ -122,7 +122,7 @@ defmodule MqttexQueueTest do
 	@doc """
 	Sends a bulk of messages into a queue, a topic and with a given QoS.
 	"""
-	def bulk_send(messages, q, qos, topic // "Any Topic", millis // 10) do
+	def bulk_send(messages, q, qos, topic \\ "Any Topic", millis \\ 10) do
 		Enum.each(messages, 
 			fn(m) -> Mqttex.Test.SessionAdapter.publish(q, topic, m, qos) end)
 
@@ -134,7 +134,7 @@ defmodule MqttexQueueTest do
 	@doc """
 	Sluprs all messages and counts how often each message occurs. 
 	"""
-	def slurp(msgs // ListDict.new) do
+	def slurp(msgs \\ ListDict.new) do
 		receive do
 			Mqttex.PublishMsg[message: m] ->	
 				slurp(Dict.update(msgs, m, 1, &(&1 + 1)))
@@ -151,7 +151,7 @@ defmodule MqttexQueueTest do
 		result = Stream.map(range, &("Message #{&1}"))
 	end
 	
-	def sleep(millis // 1_000) do
+	def sleep(millis \\ 1_000) do
 		receive do
 			after millis -> nil
 		end		
@@ -164,7 +164,7 @@ defmodule MqttexQueueTest do
 	* `loss`: the amount of message loss in percent. Defaults to `0` 
 	* `final_receiver_pid`: the final receiver of the message, defaults to `self`
 	"""
-	def setupQueue(loss // 0, final_receiver_pid // self) do
+	def setupQueue(loss \\ 0, final_receiver_pid \\ self) do
 		if (loss == 0) do
 			IO.puts "Setting up channels"
 		else

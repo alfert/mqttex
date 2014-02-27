@@ -56,7 +56,7 @@ defmodule MqttexQosTest do
 		# IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
 	end
 
-	def makePublishMsg(topic, content, qos // :fire_and_forget, id // 0 ) do
+	def makePublishMsg(topic, content, qos \\ :fire_and_forget, id \\ 0 ) do
 		header= Mqttex.FixedHeader.new([qos: qos, message_type: :publish])
 		Mqttex.PublishMsg.new([header: header, topic: topic, message: content, msg_id: id ])
 	end
@@ -69,7 +69,7 @@ defmodule MqttexQosTest do
 	* `final_receiver_pid`: the final receiver of the message, defaults to `self`
 
 	"""
-	def setupChannels(msg, loss // 0, final_receiver_pid // self) do
+	def setupChannels(msg, loss \\ 0, final_receiver_pid \\ self) do
 		if (loss == 0) do
 			IO.puts "Setting up channels"
 		else
@@ -228,7 +228,7 @@ end
 defmodule MqttextSimpleReceiverQueue do
 	use ExUnit.Case
 
-	def start(receiver_mod, queue_pid, tester_mod // MqttextSimpleSenderAdapter) do
+	def start(receiver_mod, queue_pid, tester_mod \\ MqttextSimpleSenderAdapter) do
 		receive do
 			{:sender, sender_pid} -> wait_for_message(sender_pid, receiver_mod, queue_pid, tester_mod)
 		end
