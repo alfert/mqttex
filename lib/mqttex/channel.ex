@@ -5,7 +5,7 @@ defmodule Mqttex.TestChannel do
 	"""
 
 	@doc "A simple channel that forwards all messages it receives"
-	def channel(state // [loss: 0]) do
+	def channel(state \\ [loss: 0]) do
 		receive do
 			{:register, receiver} -> 
 				s = Dict.put(state, :receiver, receiver)
@@ -61,7 +61,7 @@ defmodule Mqttex.Test.SessionAdapter do
 		receivers: Mqttex.ProtocolManager.new(),
 		final: nil
 
-	def start(chOut, final // self) when is_pid(chOut) and is_pid(final) do
+	def start(chOut, final \\ self) when is_pid(chOut) and is_pid(final) do
 		state = State.new(final: final)
 		loop(chOut, state)
 	end

@@ -7,7 +7,7 @@ defmodule Mqttex.TCP do
 	@doc """
 	Starts a server socket at port `port` and connect it with the MQTT `server`. 
 	"""
-	def start_server(port // 1178) do
+	def start_server(port \\ 1178) do
 		{:ok, listen} = :gen_tcp.listen(port, [:binary, {:packet, 4},
 											 {:reuseaddr, true},	
 											 {:active, true}])
@@ -36,7 +36,7 @@ defmodule Mqttex.TCP do
 	@doc """
 	Starts a new channel and returns its process id.
 	"""
-	def start_channel(Mqttex.Client.Connection[server: server, port: port] = con, client) do
+	def start_channel(Mqttex.Client.Connection[server: server, port: port] = _con, client) do
 		looper = fn() -> 
 				{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 4}])
 				loop(socket, client, Mqttex.Client)

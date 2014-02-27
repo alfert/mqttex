@@ -78,7 +78,7 @@ defmodule Mqttex.Client do
 	###############################################################################
 		
 	@spec start_link(Mqttex.Connection.t, pid, pid | Connection.t) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
-	def start_link(Mqttex.Connection[] = connection, client_proc // self(), network_channel) do
+	def start_link(Mqttex.Connection[] = connection, client_proc \\ self(), network_channel) do
 		:error_logger.info_msg "#{__MODULE__}.start_link for #{connection.client_id}"
 		start_result = :gen_server.start_link({:global, "C" <> connection.client_id}, @my_name, 
 									{connection, client_proc, network_channel},
