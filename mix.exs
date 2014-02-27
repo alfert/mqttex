@@ -26,7 +26,7 @@ defmodule Mqttex.Mixfile do
   # { :barbat, "~> 0.1", github: "elixir-lang/barbat.git" }
   defp deps do
     [
-      { :properex, ">= 0.1", [github: "yrashk/properex"]},
+      # { :properex, ">= 0.1", [github: "yrashk/properex"]},
       # LagerEx ist too old and does not compile in version 0.1
       # {:lagerex,"0.1", [github: "yrashk/lagerex", tag: "0.1"]},
       {:ranch,"0.9.0", [github: "extend/ranch", tag: "0.9.0"]},
