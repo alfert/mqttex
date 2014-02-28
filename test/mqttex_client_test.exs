@@ -75,9 +75,9 @@ defmodule MqttexClientTest do
 		end
 		losslist = ListDict.new [loss: loss]
 		# Create Outbound and Inbound Communication Channels
-		chSender = spawn_link(Mqttex.TestChannel, :channel, [losslist])
+		chSender = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 		assert is_pid(chSender)
-		chReceiver = spawn_link(Mqttex.TestChannel, :channel, [losslist])
+		chReceiver = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 		assert is_pid(chReceiver)
 
 		# Sessions encapsule the Communication Channels

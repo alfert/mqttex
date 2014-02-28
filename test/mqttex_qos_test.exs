@@ -76,8 +76,8 @@ defmodule MqttexQosTest do
 			IO.puts "Setting up lossy channel (loss = #{loss})"
 		end
 		losslist = ListDict.new [loss: loss]
-		chIn  = spawn_link(Mqttex.TestChannel, :channel, [losslist])
-		chOut = spawn_link(Mqttex.TestChannel, :channel, [losslist])
+		chIn  = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
+		chOut = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 
 		#IO.puts "Setting up Sender Adapter"
 		adapter_pid    = spawn_link(MqttextSimpleSenderAdapter, :start, [chOut])
