@@ -15,7 +15,14 @@ defmodule Mqttex.Mixfile do
   def application do
     [ 
       mod: { Mqttex, [] },
-      applications: [:kernel, :stdlib, :sasl, :elixir]
+      applications: [:kernel, :stdlib, :sasl, :elixir],
+      # standard configuration
+      env: [
+        port: 1831,
+        ssl_port: 8831,
+        default_user: "guest",
+        default_passwd: "guest"
+      ]
     ]
   end
 
