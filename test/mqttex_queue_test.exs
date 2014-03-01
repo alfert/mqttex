@@ -114,7 +114,7 @@ defmodule MqttexQueueTest do
 
 		bulk_send(messages, q, :at_most_once, "AMO-Topic") # , 3_000)
 
-		result = slurp_all messages
+		result = slurp_all messages, ListDict.new, 10_000
 		Lager.debug "Slurp result: #{inspect result}"
 		
 		assert message_count == Dict.size(result)
