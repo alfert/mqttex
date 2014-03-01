@@ -3,7 +3,7 @@ defmodule MqttexClientTest do
 	use ExUnit.Case
 
 	test "Connect a client and send FaF" do
-	  	{client, server} = connect("nobody", "passwd")
+	  	{client, _server} = connect("nobody", "passwd")
 		body = "Message"
 		Mqttex.Client.publish(client, "topic", body, :fire_and_forget)
 
@@ -11,7 +11,7 @@ defmodule MqttexClientTest do
 	end
 
 	test "Connect a client and send ALO" do
-	  	{client, server} = connect("nobody", "passwd")
+	  	{client, _server} = connect("nobody", "passwd")
 		body = "ALO Message"
 		Mqttex.Client.publish(client, "topic", body, :at_least_once)
 
@@ -19,7 +19,7 @@ defmodule MqttexClientTest do
 	end
 
 	test "Connect a client and send AMO" do
-	  	{client, server} = connect("nobody", "passwd")
+	  	{client, _server} = connect("nobody", "passwd")
 		body = "ALO Message"
 		Mqttex.Client.publish(client, "topic", body, :at_most_once)
 
@@ -28,7 +28,7 @@ defmodule MqttexClientTest do
 
 
 	test "Receive a published Message (FaF)" do
-		{client, server} = connect("nobody", "passwd")
+		{_client, server} = connect("nobody", "passwd")
 		body = "FaF Message"
 		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :fire_and_forget)
 
@@ -36,7 +36,7 @@ defmodule MqttexClientTest do
 	end
 
 	test "Receive a published Message (ALO)" do
-		{client, server} = connect("nobody", "passwd")
+		{_client, server} = connect("nobody", "passwd")
 		body = "ALO Message"
 		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :at_least_once)
 
@@ -44,7 +44,7 @@ defmodule MqttexClientTest do
 	end
 
 	test "Receive a published Message (AMO)" do
-		{client, server} = connect("nobody", "passwd")
+		{_client, server} = connect("nobody", "passwd")
 		body = "ALO Message"
 		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :at_most_once)
 
