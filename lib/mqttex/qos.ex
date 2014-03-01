@@ -161,7 +161,7 @@ defmodule Mqttex.QoS1Sender do
 			Mqttex.PubAckMsg[msg_id: ^id]   -> :ok
 			Mqttex.SubAckMsg[msg_id: ^id]   -> :ok
 			Mqttex.UnSubAckMsg[msg_id: ^id] -> :ok
-			after ^timeout                  -> send_msg(m, id, mod, sender, :second)
+			after  timeout                  -> send_msg(m, id, mod, sender, :second)
 		end
 	end
 
@@ -218,7 +218,7 @@ defmodule Mqttex.QoS2Sender do
 		receive do
 			Mqttex.PubRecMsg[msg_id: ^msg_id] -> send_release(msg_id, mod, sender, :first)
 			any						 		  -> :error_logger.error_msg("Strange message: #{inspect any}")
-			after ^timeout                    -> send_msg(msg, mod, sender, :second)
+			after  timeout                    -> send_msg(msg, mod, sender, :second)
 		end
 	end
 
@@ -233,7 +233,7 @@ defmodule Mqttex.QoS2Sender do
 		timeout = mod.send_release(sender, m)
 		receive do
 			Mqttex.PubCompMsg[msg_id: ^msg_id] -> :ok
-			after ^timeout                     -> send_release(msg_id, mod, sender, :second)
+			after  timeout                     -> send_release(msg_id, mod, sender, :second)
 		end
 	end
 
@@ -258,7 +258,7 @@ defmodule Mqttex.QoS2Receiver do
 		receive do
 			Mqttex.PubRelMsg[msg_id: ^msg_id]  -> send_complete(msg, msg_id, mod, receiver, :first)
 			Mqttex.PublishMsg[msg_id: ^msg_id] -> send_received(msg, msg_id, mod, receiver, :second)
-			after ^timeout                     -> send_received(msg, msg_id, mod, receiver, :second)
+			after  timeout                     -> send_received(msg, msg_id, mod, receiver, :second)
 		end
 	end
 

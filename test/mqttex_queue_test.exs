@@ -137,18 +137,18 @@ defmodule MqttexQueueTest do
 	Slurps all messages once in order and after that slurps any remaining messages
 	the process mailbox until `:done` is found
 	"""
-	def slurp_all([], found \\ ListDict.new, timeout \\ 5_000), do: slurp(found)
-	def slurp_all([m | tail], found, timeout) 
+	def slurp_all([m | tail], found \\ ListDict.new, timeout \\ 5_000)
 		when is_binary(m) do
 		receive do
 			Mqttex.PublishMsg[message: ^m] -> # when m == msg -> 
 				Lager.debug("Gotcha: got #{m}")
 				slurp_all(tail, Dict.update(found, m, 1, &(&1 + 1)), timeout)
-			^timeout -> 
+			after timeout -> 
 				Lager.debug("Nothing found for #{m} -> timeout")
 				slurp_all(tail, found, timeout)
 		end
 	end
+	def slurp_all([], found, _timeout), do: slurp(found)
 	def slurp_all(Stream.Lazy[] = stream, found, timeout) do
 		slurp_all(Enum.to_list(stream), found, timeout)
 	end
@@ -169,7 +169,7 @@ defmodule MqttexQueueTest do
 	
 	def generateMessages(count) do
 		range = 1..count 
-		result = Stream.map(range, &("Message #{&1}"))
+		Stream.map(range, &("Message #{&1}"))
 	end
 		
 
