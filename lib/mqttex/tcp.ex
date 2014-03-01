@@ -1,4 +1,7 @@
 defmodule Mqttex.TCP do
+	require Lager
+
+
 	@moduledoc """
 	This module provides network connectivity with Erlang's standard TCP libraries (i.e. `gen_tcp`).
 	"""
@@ -11,14 +14,14 @@ defmodule Mqttex.TCP do
 		{:ok, listen} = :gen_tcp.listen(port, [:binary, {:packet, 4},
 											 {:reuseaddr, true},	
 											 {:active, true}])
-		:error_logger.info_msg("Mqttex.Server at port #{port} is listening")
+		Lager.info("Mqttex.Server at port #{port} is listening")
 		spawn(fn() -> spawn_server(listen) end)
 	end
 
 	defp spawn_server(listen) do
 		{:ok, socket} = :gen_tcp.accept(listen)
 		# :gen_tcp.close(listen)
-		:error_logger.info_msg("Mqttex.Server accepted and spawning")
+		Lager.info("Mqttex.Server accepted and spawning")
 		spawn(fn() -> spawn_server(listen) end)
 		loop(socket, :nil, Mqttex.Server)				
 	end
@@ -49,12 +52,12 @@ defmodule Mqttex.TCP do
 	Socket loop
 	"""
 	def loop(socket, server, mod) do
-		:error_logger.info_msg("loop #{inspect self} for #{inspect socket} and process #{inspect server} with module #{mod}")
+		Lager.info("loop #{inspect self} for #{inspect socket} and process #{inspect server} with module #{mod}")
 		receive do
 			{:tcp, ^socket, bin} ->
-				:error_logger.info_msg("Socket received binary = #{inspect bin}")
+				Lager.info("Socket received binary = #{inspect bin}")
 				str = :erlang.binary_to_term(bin)
-				:error_logger.info_msg("Socket (unpacked) #{inspect str}")
+				Lager.info("Socket (unpacked) #{inspect str}")
 				# call the server
 				case str do
 					Mqttex.ConnectionMsg[] = con -> 
@@ -64,9 +67,9 @@ defmodule Mqttex.TCP do
 						loop(socket, server, mod)
 				end
 			{:tcp_closed, ^socket} ->
-				:error_logger.info_msg("Socket #{inspect socket} closed")
+				Lager.info("Socket #{inspect socket} closed")
 			msg ->
-				:error_logger.info_msg("Socket sends message #{inspect msg}")
+				Lager.info("Socket sends message #{inspect msg}")
 				:gen_tcp.send(socket, :erlang.term_to_binary(msg))
 				loop(socket, server, mod)
 		end
@@ -78,7 +81,7 @@ defmodule Mqttex.TCP do
 	(either with an error, closing the socket, or with the `:ok`) 
 	"""
 	def do_connect(socket, Mqttex.ConnectionMsg[] = con, mod) do
-		:error_logger.info_msg("TCP.do_connect self=#{inspect self} and con = #{inspect con}")
+		Lager.info("TCP.do_connect self=#{inspect self} and con = #{inspect con}")
 		case Mqttex.Server.connect(con, self) do
 			{msg, server_pid} -> 
 				send(self, msg)	
