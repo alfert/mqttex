@@ -9,8 +9,14 @@ defmodule Mqttex.TCP do
 
 	@doc """
 	Starts a server socket at port `port` and connect it with the MQTT `server`. 
+	Uses the default port from the application environment (usually port 1883)
 	"""
-	def start_server(port \\ 1178) do
+	def start_server() do
+		{:ok, port} = :application.get_env(:mqttex, :port)
+		start_server(port)
+	end
+	
+	def start_server(port) do
 		{:ok, listen} = :gen_tcp.listen(port, [:binary, {:packet, 4},
 											 {:reuseaddr, true},	
 											 {:active, true}])
@@ -52,12 +58,12 @@ defmodule Mqttex.TCP do
 	Socket loop
 	"""
 	def loop(socket, server, mod) do
-		Lager.info("loop #{inspect self} for #{inspect socket} and process #{inspect server} with module #{mod}")
+		Lager.debug("loop #{inspect self} for #{inspect socket} and process #{inspect server} with module #{mod}")
 		receive do
 			{:tcp, ^socket, bin} ->
-				Lager.info("Socket received binary = #{inspect bin}")
+				Lager.debug("Socket received binary = #{inspect bin}")
 				str = :erlang.binary_to_term(bin)
-				Lager.info("Socket (unpacked) #{inspect str}")
+				Lager.debug("Socket (unpacked) #{inspect str}")
 				# call the server
 				case str do
 					Mqttex.ConnectionMsg[] = con -> 
@@ -69,7 +75,7 @@ defmodule Mqttex.TCP do
 			{:tcp_closed, ^socket} ->
 				Lager.info("Socket #{inspect socket} closed")
 			msg ->
-				Lager.info("Socket sends message #{inspect msg}")
+				Lager.debug("Socket sends message #{inspect msg}")
 				:gen_tcp.send(socket, :erlang.term_to_binary(msg))
 				loop(socket, server, mod)
 		end
