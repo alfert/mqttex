@@ -1,10 +1,13 @@
 defmodule Mqttex.Mixfile do
   use Mix.Project
 
+  
   def project do
+    elixirc_defaults = [:debug_info, :ignore_module_conflict, :docs]
     [ app: :mqttex,
       version: "0.0.1",
       elixir: "~> 0.12.0",
+      elixirc_options: elixirc_defaults ++ options(Mix.env),
       deps: deps,
       dialyzer: [paths: ["_build/shared/lib/mqttex/ebin"] ], 
       docs: [readme: true]
@@ -15,13 +18,16 @@ defmodule Mqttex.Mixfile do
   def application do
     [ 
       mod: { Mqttex, [] },
-      applications: [:kernel, :stdlib, :sasl, :elixir],
+      applications: [:kernel, :stdlib, :sasl, :elixir, :exlager],
       # standard configuration
       env: [
-        port: 1831,
-        ssl_port: 8831,
+        port: 1178,  # default port is 1883, but mosquito is also running at home.
+        ssl_port: 8883,
         default_user: "guest",
-        default_passwd: "guest"
+        default_passwd: "guest",
+        lager: [
+          colored: true
+        ]
       ]
     ]
   end
@@ -34,13 +40,17 @@ defmodule Mqttex.Mixfile do
   defp deps do
     [
       # { :properex, ">= 0.1", [github: "yrashk/properex"]},
-      # LagerEx ist too old and does not compile in version 0.1
-      # {:lagerex,"0.1", [github: "yrashk/lagerex", tag: "0.1"]},
+      {:exlager, ~r".*",[github: "khia/exlager"]},
       {:ranch,"0.9.0", [github: "extend/ranch", tag: "0.9.0"]},
       {:dialyxir,"0.2.2",[github: "jeremyjh/dialyxir"]},
       # Generate documentation with ex_doc
       { :ex_doc, github: "elixir-lang/ex_doc" }
 
     ]
+  end
+
+  # Specific compilation options, e.g. for Lager
+  defp options(env) when env in [:dev, :test] do
+    [exlager_level: :debug, exlager_truncation_size: 8096]
   end
 end
