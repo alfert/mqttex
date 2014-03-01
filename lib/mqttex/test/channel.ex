@@ -146,7 +146,7 @@ defmodule Mqttex.Test.SessionAdapter do
 					:error ->
 						case Mqttex.ProtocolManager.dispatch_sender(state.senders, msg) do
 							:error ->
-								Lager.error("#{__MODULE__}.loop #{inspect self}: got unknown message #{inspect msg}")
+								Lager.debug("#{__MODULE__}.loop #{inspect self}: got unknown message #{inspect msg}")
 								send(state.final, msg)
 								# raise binary_to_atom("#{inspect msg}")
 							_ -> :ok
