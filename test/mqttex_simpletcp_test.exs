@@ -1,5 +1,6 @@
 defmodule MqttexSimpleTCPTest do
 	use ExUnit.Case
+	import Mqttex.Test.Tools
 
 	test "Basic TCP connections work" do
 		server = Mqttex.TCP.start_server
@@ -101,24 +102,5 @@ defmodule MqttexSimpleTCPTest do
 	end
 
 
-
-
-	def wait_for_shutdown(ref, millis \\ 1_000) do
-		receive do
-			{:DOWN, ^ref, _type, _object, _info} ->
-				:error_logger.info_msg "Got DOWN message"
-				:ok
-			after millis -> 				
-				:error_logger.error_msg "Process #{inspect ref} does NOT exit properly!"
-				:timeout
-		end		
-	end
-	
-	def sleep(millis \\ 1_000) do
-		receive do
-			after millis -> :ok
-		end
-	end
-	
 
 end
