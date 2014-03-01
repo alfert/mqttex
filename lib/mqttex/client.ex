@@ -2,7 +2,7 @@ defmodule Mqttex.Client do
 	@moduledoc """
 	The client interface to the MQTT Server. 
 	"""
-
+	require Lager
 	use GenServer.Behaviour
 	@my_name __MODULE__
 	@default_timeout 500 # 100m milliseconds timeout 
@@ -13,7 +13,7 @@ defmodule Mqttex.Client do
 	defrecord Connection, 
 		server: "",
 		protocol: :tcp,
-		port: 1178, 
+		port: 1883, 
 		module: nil		# a channel module
 
 	defrecord ClientState, 
@@ -27,6 +27,20 @@ defmodule Mqttex.Client do
 	###############################################################################
 	## API
 	###############################################################################
+
+	@doc """
+	Creates a new connection and uses the environment configuration. It is discouraged
+	to instantiate the `Connection` directly
+	"""
+	def new_connection(server, networkmodule) do
+		{:ok, port } = :application.get_env(:mqttex, :port)
+		new_connection(server, networkmodule, port)
+	end
+	def new_connection(server, networkmodule, port) do
+		Connection.new([server: server, port: port, module: networkmodule])
+	end
+	
+	
 
 	@doc """
 	Connects to an MQTT Server and starts the client process.
@@ -79,7 +93,7 @@ defmodule Mqttex.Client do
 		
 	@spec start_link(Mqttex.Connection.t, pid, pid | Connection.t) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def start_link(Mqttex.Connection[] = connection, client_proc \\ self(), network_channel) do
-		:error_logger.info_msg "#{__MODULE__}.start_link for #{connection.client_id}"
+		Lager.debug "#{__MODULE__}.start_link for #{connection.client_id}"
 		start_result = :gen_server.start_link({:global, "C" <> connection.client_id}, @my_name, 
 									{connection, client_proc, network_channel},
 									[timeout: connection.keep_alive_server])
@@ -171,19 +185,19 @@ defmodule Mqttex.Client do
 		{:noreply, state, state.timeout}
 	end
 	def handle_info(msg, state) do
-		:error_logger.error_msg("Client #{inspect self}: Unknown Message received: #{inspect msg}")
-		:error_logger.error_msg("Client #{inspect self}: State #{inspect state}")
+		Lager.error("Client #{inspect self}: Unknown Message received: #{inspect msg}")
+		Lager.error("Client #{inspect self}: State #{inspect state}")
 		{:noreply, state, state.timeout}
 	end
 
 	# Executes the send of a message as internal function
 	defp do_send_msg(msg, ClientState[out_fun: out_fun] = state) do
-		:error_logger.info_msg("Mqttex.Client.do_send: #{inspect msg}")
+		Lager.debug("Mqttex.Client.do_send: #{inspect msg}")
 		out_fun.(msg)
 	end
 
 	def terminate(reason, state) do
-		:error_logger.info_msg("Mqttex.Client.terminate with reason #{inspect reason} in #{inspect state}")
+		Lager.info("Mqttex.Client.terminate with reason #{inspect reason} in #{inspect state}")
 	end
 	
 
