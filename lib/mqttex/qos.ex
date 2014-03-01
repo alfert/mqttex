@@ -142,9 +142,9 @@ defmodule Mqttex.QoS1Sender do
 	"""
 
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
-	def start(Mqttex.SubscribeMsg[msg_id: id] = msg, mod, sender), do: start(msg, id, mod, sender)
+	def start(Mqttex.SubscribeMsg[msg_id: id]   = msg, mod, sender), do: start(msg, id, mod, sender)
 	def start(Mqttex.UnSubscribeMsg[msg_id: id] = msg, mod, sender), do: start(msg, id, mod, sender)
-	def start(Mqttex.PublishMsg[msg_id: id] = msg, mod, sender), do: start(msg, id, mod, sender)
+	def start(Mqttex.PublishMsg[msg_id: id]     = msg, mod, sender), do: start(msg, id, mod, sender)
 
 	defp start(msg, id, mod, sender) do
 		receive do
@@ -158,10 +158,10 @@ defmodule Mqttex.QoS1Sender do
 		m = msg.update(header: h)
 		timeout = mod.send_msg(sender, m)
 		receive do
-			Mqttex.PubAckMsg[msg_id: ^id] -> :ok
-			Mqttex.SubAckMsg[msg_id: ^id] -> :ok
+			Mqttex.PubAckMsg[msg_id: ^id]   -> :ok
+			Mqttex.SubAckMsg[msg_id: ^id]   -> :ok
 			Mqttex.UnSubAckMsg[msg_id: ^id] -> :ok
-			after timeout                -> send_msg(m, id, mod, sender, :second)
+			after ^timeout                  -> send_msg(m, id, mod, sender, :second)
 		end
 	end
 
@@ -218,7 +218,7 @@ defmodule Mqttex.QoS2Sender do
 		receive do
 			Mqttex.PubRecMsg[msg_id: ^msg_id] -> send_release(msg_id, mod, sender, :first)
 			any						 		  -> :error_logger.error_msg("Strange message: #{inspect any}")
-			after timeout                     -> send_msg(msg, mod, sender, :second)
+			after ^timeout                    -> send_msg(msg, mod, sender, :second)
 		end
 	end
 
@@ -233,7 +233,7 @@ defmodule Mqttex.QoS2Sender do
 		timeout = mod.send_release(sender, m)
 		receive do
 			Mqttex.PubCompMsg[msg_id: ^msg_id] -> :ok
-			after timeout                      -> send_release(msg_id, mod, sender, :second)
+			after ^timeout                     -> send_release(msg_id, mod, sender, :second)
 		end
 	end
 
@@ -256,9 +256,9 @@ defmodule Mqttex.QoS2Receiver do
 		received = Mqttex.PubRecMsg[msg_id: msg_id]
 		timeout = mod.send_received(receiver, received)
 		receive do
-			Mqttex.PubRelMsg[msg_id: ^msg_id] -> send_complete(msg, msg_id, mod, receiver, :first)
+			Mqttex.PubRelMsg[msg_id: ^msg_id]  -> send_complete(msg, msg_id, mod, receiver, :first)
 			Mqttex.PublishMsg[msg_id: ^msg_id] -> send_received(msg, msg_id, mod, receiver, :second)
-			after timeout -> send_received(msg, msg_id, mod, receiver, :second)
+			after ^timeout                     -> send_received(msg, msg_id, mod, receiver, :second)
 		end
 	end
 
