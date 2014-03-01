@@ -14,6 +14,7 @@ defmodule Mqttex.Server do
 	@my_name __MODULE__
 	@default_timeout 500 # 100m milliseconds timeout 
 
+	require Lager
 	use Mqttex.SenderBehaviour
 	use Mqttex.ReceiverBehaviour
 
@@ -137,7 +138,7 @@ defmodule Mqttex.Server do
 
 	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
 	def start_link( Mqttex.Connection[] = connection, client_proc \\ self()) do
-		:error_logger.info_msg "#{__MODULE__}.start_link for `#{connection.client_id}'"
+		Lager.info "#{__MODULE__}.start_link for `#{connection.client_id}'"
 		:gen_fsm.start_link({:global, "S" <> connection.client_id}, @my_name, {connection, client_proc},
 									[timeout: connection.keep_alive_server])
 	end
@@ -146,7 +147,7 @@ defmodule Mqttex.Server do
 	def init({connection, client_proc}) do
 		# TODO: check that the connection data is proper. Invalidity results in {:stop, error_code}, 
 		# where error_code is of type conn_ack_type
-		:error_logger.info_msg "#{__MODULE__}.init in #{inspect self} for client_proc #{inspect client_proc}"
+		Lager.debug "#{__MODULE__}.init in #{inspect self} for client_proc #{inspect client_proc}"
 		queue = nil # Mqttex.OutboundQueue.start_link(self, __MODULE__)
 		{:ok, :clean_session, 
 			ConnectionState.new([connection: connection, client_proc: client_proc, 
@@ -217,7 +218,7 @@ defmodule Mqttex.Server do
 	end
 	def clean_session({:receive, Mqttex.DisconnectMsg[] = _msg}, ConnectionState[]=state) do
 		# TODO: call unsubscribe all topics
-		:error_logger.info_msg("Got Disconnect, going to disconnected mode")
+		Logger.debug("Got Disconnect, going to disconnected mode")
 		# no timeout here, we wait forever
 		{:next_state, :clean_disconnect, state}
 	end
@@ -270,13 +271,13 @@ defmodule Mqttex.Server do
 		{:reply, reply, s, new_state_data, new_state_data.connection.keep_alive_server}
 	end
 	def clean_disconnect(any_msg, _from, ConnectionState[]=state) do
-		:error_logger.error_msg("Disconnected Server #{state.connection.client_id} got message #{inspect any_msg}")
+		Lager.debug("Disconnected Server #{state.connection.client_id} got message #{inspect any_msg}")
 		{:next_state, :clean_disconnect, state}
 	end
 
 	@doc "Received messages in the disconnected state are simply ignored"
 	def clean_disconnect(any_msg, ConnectionState[]=state) do
-		:error_logger.error_msg("Disconnected Server #{state.connection.client_id} got message #{inspect any_msg}")
+		Lager.debug("Disconnected Server #{state.connection.client_id} got message #{inspect any_msg}")
 		{:next_state, :clean_disconnect, state}
 	end
 	
@@ -297,7 +298,7 @@ defmodule Mqttex.Server do
 
 	@doc "Terminaction call back"
 	def terminate(reason, state, ConnectionState[connection: con] = state_data) do
-		:error_logger.info_msg "Shutting down for reason #{inspect reason} " <> 
+		Lager.info "Shutting down for reason #{inspect reason} " <> 
 			"in state #{inspect state} for connection #{inspect con.client_id}"
 	end		
 
