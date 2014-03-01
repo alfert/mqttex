@@ -1,5 +1,5 @@
 defmodule MqttexQosTest do
-	
+	require Lager
 	use ExUnit.Case
 
 	test "Fire And Forget" do
@@ -17,7 +17,7 @@ defmodule MqttexQosTest do
 		receive do
 			Mqttex.PubAckMsg[] = ack -> assert ack.msg_id == msg.msg_id
 			Mqttex.PublishMsg[] = received -> 
-				IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
+				Lager.debug "Yeah, we received this message: #{inspect received}"
 				assert received.msg_id == msg.msg_id
 			any -> flunk "Got invalid #{inspect any}"
 			after 1000 -> flunk "Timout"
@@ -31,7 +31,7 @@ defmodule MqttexQosTest do
 		receive do
 			Mqttex.PubCompMsg[] = ack -> assert ack.msg_id == msg.msg_id
 			Mqttex.PublishMsg[] = received -> 
-				IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
+				Lager.debug "Yeah, we received this message: #{inspect received}"
 				assert received.msg_id == msg.msg_id
 			any -> flunk "Got invalid #{inspect any}"
 			after 1000 -> flunk "Timeout"
@@ -43,8 +43,8 @@ defmodule MqttexQosTest do
 		msg = makePublishMsg("Topic ALO", "Lossy ALO Message", :at_least_once, msg_id)
 		setupChannels(msg, 70)
 
-		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = received, 1000
-		# IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
+		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = _received, 1000
+		# Lager.debug "Yeah, we received this message: #{inspect received}"
 	end
 
 	test "At Most Once - one time, lossy channel" do
@@ -52,8 +52,8 @@ defmodule MqttexQosTest do
 		msg = makePublishMsg("Topic AMO", "Lossy AMO Message", :at_most_once, msg_id)
 		setupChannels(msg, 70)
 
-		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = received, 2000
-		# IO.puts "#{IO.ANSI.cyan}Yeah, we received this message: #{inspect received}#{IO.ANSI.white}"
+		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = _received, 2000
+		# Lager.debug "Yeah, we received this message: #{inspect received}"
 	end
 
 	def makePublishMsg(topic, content, qos \\ :fire_and_forget, id \\ 0 ) do
@@ -71,19 +71,19 @@ defmodule MqttexQosTest do
 	"""
 	def setupChannels(msg, loss \\ 0, final_receiver_pid \\ self) do
 		if (loss == 0) do
-			IO.puts "Setting up channels"
+			Lager.debug "Setting up channels"
 		else
-			IO.puts "Setting up lossy channel (loss = #{loss})"
+			Lager.debug "Setting up lossy channel (loss = #{loss})"
 		end
 		losslist = ListDict.new [loss: loss]
 		chIn  = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 		chOut = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 
-		#IO.puts "Setting up Sender Adapter"
+		#Lager.debug "Setting up Sender Adapter"
 		adapter_pid    = spawn_link(MqttextSimpleSenderAdapter, :start, [chOut])
 		send(chIn, {:register, adapter_pid})
 
-		#IO.puts "Setting up Receiver Adapter"
+		#Lager.debug "Setting up Receiver Adapter"
 		receiver_pid = spawn_link(MqttextSimpleSenderAdapter, :start_receiver, [chIn])
 		send(chOut, {:register, receiver_pid})
 
@@ -91,7 +91,7 @@ defmodule MqttexQosTest do
 		MqttextSimpleSenderAdapter.register_receiver(receiver_pid, final_receiver_pid)
 
 		# Here we go!
-		#IO.puts "Here we go!"
+		#Lager.debug "Here we go!"
 		senderProtocol = MqttextSimpleSenderAdapter.publish(adapter_pid, msg)
 		send(senderProtocol, :go)
 	end
@@ -99,6 +99,7 @@ end
 
 
 defmodule MqttextSimpleSenderAdapter do
+	require Lager
 	use ExUnit.Case
 	use Mqttex.SenderBehaviour
 	@timeout 200
@@ -182,26 +183,26 @@ defmodule MqttextSimpleSenderAdapter do
 	end
 
 	def send_msg(adapter_pid, msg) do
-		#IO.puts "#{__MODULE__}: send_msg mit msg = #{inspect msg}"
-		#IO.puts "#{__MODULE__}: process is #{inspect self}"
+		#Lager.debug "#{__MODULE__}: send_msg mit msg = #{inspect msg}"
+		#Lager.debug "#{__MODULE__}: process is #{inspect self}"
 		send(adapter_pid, {:send, msg})
 		@timeout
 	end	
 
 	def send_received(adapter_pid, msg) do
-		#IO.puts "#{__MODULE__}: send_received mit msg = #{inspect msg}"
+		#Lager.info "#{__MODULE__}: send_received mit msg = #{inspect msg}"
 		send(adapter_pid, {:send, msg})
 		@timeout
 	end
 
 	def send_release(adapter_pid, msg) do
-		#IO.puts "#{__MODULE__}: send_release mit msg = #{inspect msg}"
+		#Lager.debug "#{__MODULE__}: send_release mit msg = #{inspect msg}"
 		send(adapter_pid, {:send, msg})
 		@timeout
 	end
 
 	def send_complete(adapter_pid, msg) do
-		#IO.puts "#{__MODULE__}: send_complete mit msg = #{inspect msg}"
+		#Lager.debug "#{__MODULE__}: send_complete mit msg = #{inspect msg}"
 		send(adapter_pid, {:send, msg})
 		@timeout
 	end
@@ -215,17 +216,18 @@ defmodule MqttextSimpleSenderAdapter do
 	end
 
 	# this is a no-op here
-	def finish_sender(adapter_pid, msg_id) do
+	def finish_sender(_adapter_pid, _msg_id) do
 		:ok
 	end
 	# this is a no-op here
-	def finish_receiver(adapter_pid, msg_id) do
+	def finish_receiver(_adapter_pid, _msg_id) do
 		:ok
 	end
 	
 end
 
 defmodule MqttextSimpleReceiverQueue do
+	require Lager
 	use ExUnit.Case
 
 	def start(receiver_mod, queue_pid, tester_mod \\ MqttextSimpleSenderAdapter) do
@@ -237,7 +239,7 @@ defmodule MqttextSimpleReceiverQueue do
 	def wait_for_message(sender_pid, receiver_mod, _queue_pid, tester_mod) do
 		receive do
 			msg ->
-				IO.puts("#{__MODULE__}.start Receiver with message #{inspect msg}")
+				Lager.debug("#{__MODULE__}.start Receiver with message #{inspect msg}")
 				receiver_pid = spawn_link(receiver_mod, :start, [msg, tester_mod, sender_pid])
 				wait_for_release(receiver_pid, sender_pid)
 			after 1000 -> flunk("#{__MODULE__}.start: timeout, got no message")
@@ -245,12 +247,12 @@ defmodule MqttextSimpleReceiverQueue do
 	end
 
 	def wait_for_release(receiver_pid, sender_pid) do
-		IO.puts "#{__MODULE__}.wait for release"
+		Lager.debug "#{__MODULE__}.wait for release"
 		receive do
 			Mqttex.PubRelMsg[] = msg -> 
-				IO.puts "Got Release msg #{inspect msg}"
+				Lager.debug "Got Release msg #{inspect msg}"
 				send(receiver_pid, msg)
-			any -> IO.puts("#{__MODULE__}.wait_for_release got bizarre msg #{inspect any} -> recurse")
+			any -> Lager.warning("#{__MODULE__}.wait_for_release got bizarre msg #{inspect any} -> recurse")
 				   wait_for_release(receiver_pid, sender_pid)
 			after 1000 -> flunk("#{__MODULE__}.wait_for_release: timeout, got no message")
 		end
