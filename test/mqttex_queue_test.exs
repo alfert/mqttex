@@ -3,20 +3,20 @@ defmodule MqttexQueueTest do
 	This test requires the Lossy Channel for checking that the protocols work for many 
 	messages to send.
 	"""
-
+	require Lager
 	use ExUnit.Case
+	import Mqttex.Test.Tools
 
 	test "Simple Send via Queue" do
 		{q, qIn} = setupQueue()
-		ref = Process.monitor(qIn)
-		IO.puts "q is #{inspect q}"
-		IO.puts "qIn is #{inspect qIn}"
+		Lager.debug "q is #{inspect q}"
+		Lager.debug "qIn is #{inspect qIn}"
 		Mqttex.Test.SessionAdapter.send_msg(q, :hello)
 		# this must fail, hello is not a proper message 
 		assert_receive :hello, 200
 		# receive do
-		# 	msg -> IO.puts "Got message #{inspect msg}"
-		# 	after 200 -> IO.puts "timeout :-("
+		# 	msg -> Lager.debug "Got message #{inspect msg}"
+		# 	after 200 -> Lager.debug "timeout :-("
 		# end
 		# assert_receive {:DONE, ^ref, _, _, _},  200
 	end
@@ -38,27 +38,27 @@ defmodule MqttexQueueTest do
 	end
 
 	test "Publish AMO via Queue" do
-		{q, qIn} = setupQueue()
+		{q, _qIn} = setupQueue()
 		msg = "Initial Message AMO"
 		Mqttex.Test.SessionAdapter.publish(q, "AMO-Topic", msg, :at_most_once)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_000
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
 	end
 
 	test "Publish ALO via Lossy Queue" do
-		{q, qIn} = setupQueue(70)
+		{q, _qIn} = setupQueue(70)
 		msg = "Lossy Message ALO"
 		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg, :at_least_once)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_000
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
 	end
 
 	test "Publish AMO via Lossy Queue" do
-		{q, qIn} = setupQueue(70)
+		{q, _qIn} = setupQueue(70)
 		msg = "Lossy Message AMO"
 		Mqttex.Test.SessionAdapter.publish(q, "AMO-Topic", msg, :at_most_once)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg] = any, 1_100
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_100
 	end
 
 	test "Publish two ALOs" do
@@ -74,48 +74,51 @@ defmodule MqttexQueueTest do
 
 
 	test "Many ALO messages" do
-		{q, qIn} = setupQueue()
+		{q, _qIn} = setupQueue()
 		messages = generateMessages(100)
-		# IO.puts "messages are: #{inspect messages}"
+		# Lager.debug "messages are: #{inspect messages}"
 
 		bulk_send(messages, q, :at_least_once, "ALO-Topic")
 		result = slurp()
-		IO.puts "Slurp result: #{inspect result}"
+		Lager.debug"Slurp result: #{inspect result}"
 		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
 	end
 
 	test "Many AMO messages" do
-		{q, qIn} = setupQueue()
+		{q, _qIn} = setupQueue()
 		messages = generateMessages(100)
-		# IO.puts "messages are: #{inspect messages}"
+		# Lager.debug "messages are: #{inspect messages}"
 
 		bulk_send(messages, q, :at_most_once, "AMO-Topic")
 		result = slurp()
-		IO.puts "Slurp result: #{inspect result}"
+		Lager.debug "Slurp result: #{inspect result}"
 		Enum.each(messages, fn(m) -> assert result[m] == 1 end)
 	end
 
 	test "Many ALO messages via lossy queue" do
-		{q, qIn} = setupQueue(50)
+		{q, _qIn} = setupQueue(50)
 		messages = generateMessages(100)
-		# IO.puts "messages are: #{inspect messages}"
+		# Lager.debug "messages are: #{inspect messages}"
 
 		bulk_send(messages, q, :at_least_once, "ALO-Topic")
-		result = slurp()
-		IO.puts "Slurp result: #{inspect result}"
+		result = slurp_all messages
+		Lager.debug "Slurp result: #{inspect result}"
 		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
 	end
 
 	test "Many AMO messages via lossy queue" do
-		{q, qIn} = setupQueue(50)
-		messages = generateMessages(100)
-		# IO.puts "messages are: #{inspect messages}"
+		{q, _qIn} = setupQueue(50)
+		message_count = 100
+		messages = generateMessages(message_count)
+		# Lager.debug "messages are: #{inspect messages}"
 
-		bulk_send(messages, q, :at_most_once, "AMO-Topic", 3_000)
-		result = slurp()
-		IO.puts "Slurp return #{inspect Dict.size(result)}"
-		IO.puts "Slurp result: #{inspect result}"
-		Enum.each(messages, fn(m) -> assert result[m] == 1 end)
+		bulk_send(messages, q, :at_most_once, "AMO-Topic") # , 3_000)
+
+		result = slurp_all messages
+		Lager.debug "Slurp result: #{inspect result}"
+		
+		assert message_count == Dict.size(result)
+		Enum.each(messages, fn(m) -> assert 1 == result[m] end)
 	end
 
 
@@ -127,36 +130,48 @@ defmodule MqttexQueueTest do
 			fn(m) -> Mqttex.Test.SessionAdapter.publish(q, topic, m, qos) end)
 
 		sleep(millis)
-		send(self, :done)			
+		send(self, :done)	
 	end
 			
+	@doc """
+	Slurps all messages once in order and after that slurps any remaining messages
+	the process mailbox until `:done` is found
+	"""
+	def slurp_all([], found \\ ListDict.new, timeout \\ 5_000), do: slurp(found)
+	def slurp_all([m | tail], found, timeout) 
+		when is_binary(m) do
+		receive do
+			Mqttex.PublishMsg[message: ^m] -> # when m == msg -> 
+				Lager.debug("Gotcha: got #{m}")
+				slurp_all(tail, Dict.update(found, m, 1, &(&1 + 1)), timeout)
+			^timeout -> 
+				Lager.debug("Nothing found for #{m} -> timeout")
+				slurp_all(tail, found, timeout)
+		end
+	end
+	def slurp_all(Stream.Lazy[] = stream, found, timeout) do
+		slurp_all(Enum.to_list(stream), found, timeout)
+	end
 
 	@doc """
-	Sluprs all messages and counts how often each message occurs. 
+	Slurps all messages and counts how often each message occurs. 
 	"""
 	def slurp(msgs \\ ListDict.new) do
 		receive do
 			Mqttex.PublishMsg[message: m] ->	
 				slurp(Dict.update(msgs, m, 1, &(&1 + 1)))
 			:done -> msgs
-			any -> IO.puts ("slurp got any = #{inspect any}")
+			any -> Lager.info("slurp got any = #{inspect any}")
 				slurp(msgs)
 			after 1_000 -> msgs
 		end
 	end
 	
-
 	def generateMessages(count) do
 		range = 1..count 
 		result = Stream.map(range, &("Message #{&1}"))
 	end
-	
-	def sleep(millis \\ 1_000) do
-		receive do
-			after millis -> nil
-		end		
-	end
-	
+		
 
 	@doc """
 	Does the setup for all channels, receivers. Parameters:
@@ -166,9 +181,9 @@ defmodule MqttexQueueTest do
 	"""
 	def setupQueue(loss \\ 0, final_receiver_pid \\ self) do
 		if (loss == 0) do
-			IO.puts "Setting up channels"
+			Lager.debug "Setting up channels"
 		else
-			IO.puts "Setting up lossy channel (loss = #{loss})"
+			Lager.debug "Setting up lossy channel (loss = #{loss})"
 		end
 		losslist = ListDict.new [loss: loss]
 		# Create Outbound and Inbound Communication Channels
