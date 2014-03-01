@@ -1,5 +1,5 @@
 defmodule MqttexClientTest do
-	
+	require Lager
 	use ExUnit.Case
 
 	test "Connect a client and send FaF" do
@@ -69,9 +69,9 @@ defmodule MqttexClientTest do
 	"""
 	def setupQueue(loss \\ 0, final_receiver_pid \\ self) do
 		if (loss == 0) do
-			IO.puts "Setting up channels"
+			Lager.debug "Setting up channels"
 		else
-			IO.puts "Setting up lossy channel (loss = #{loss})"
+			Lager.debug "Setting up lossy channel (loss = #{loss})"
 		end
 		losslist = ListDict.new [loss: loss]
 		# Create Outbound and Inbound Communication Channels
@@ -88,10 +88,10 @@ defmodule MqttexClientTest do
 		send(chSender, {:register, sessionReceiver})
 		# send(chReceiver, {:register, sessionSender})
 
-		IO.puts "Sender Channel is   #{inspect chSender}"
-		IO.puts "Receiver Channel is #{inspect chReceiver}"
-		IO.puts "Receiver Session is #{inspect sessionReceiver}"
-  		IO.puts "Final Receiver is   #{inspect final_receiver_pid}"
+		Lager.debug "Sender Channel is   #{inspect chSender}"
+		Lager.debug "Receiver Channel is #{inspect chReceiver}"
+		Lager.debug "Receiver Session is #{inspect sessionReceiver}"
+  		Lager.debug "Final Receiver is   #{inspect final_receiver_pid}"
 
 		{chSender, chReceiver, sessionReceiver}
 	end

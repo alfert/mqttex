@@ -1,4 +1,5 @@
 defmodule Mqttex.Test.Channel do
+	require Lager
 	@moduledoc """
 	This module provide a simple channel, that is lossy and reorders the messages. 
 	It is used for testing only. 
@@ -17,19 +18,19 @@ defmodule Mqttex.Test.Channel do
 			any -> 
 				case state[:receiver] do
 					nil -> # don't do any thing
-						:error_logger.error_msg("Channel #{inspect self} got message #{inspect any}")
+						Lager.error("Channel #{inspect self} ignores message #{inspect any}")
 						channel(state)
 					receiver -> 
 						# handle message-loss: If random number is lower than 
 						# the message-loss, we swallow the message and do not send it to 
 						# to the receiver.
 						lossRnd = :random.uniform(100)
-						#IO.puts ("lossRnd = #{lossRnd}")
-						# IO.puts ("state = #{inspect state}")
+						# Lager.debug ("lossRnd = #{lossRnd}")
+						# Lager.debug ("state = #{inspect state}")
 						if (state[:loss] < lossRnd) do
 							send_msg(receiver, any, state)
 						else
-							# :error_logger.error_msg "Swallow the message #{inspect any}"
+							Lager.debug "Swallow the message #{inspect any}"
 						end
 						channel(state)
 				end
@@ -50,7 +51,7 @@ defmodule Mqttex.Test.SessionAdapter do
 	@moduledoc """
 	Adapter for Sessions
 	"""
-
+	require Lager
 	use Mqttex.SenderBehaviour
 	use Mqttex.ReceiverBehaviour
 
@@ -119,7 +120,7 @@ defmodule Mqttex.Test.SessionAdapter do
 	def loop(channel, state) do
 		receive do
 			:print_state -> 
-				IO.puts("State of #{inspect self}: #{inspect state}")
+				Lager.info("State of #{inspect self}: #{inspect state}")
 				loop(channel, state)
 			{:send, msg} -> 
 				send(channel, msg)
@@ -131,7 +132,7 @@ defmodule Mqttex.Test.SessionAdapter do
 				new_receiver = Mqttex.ProtocolManager.delete(state.receivers, msg_id)
 				loop(channel, state.update(receivers: new_receiver))
 			{:on, msg} -> 
-				# :error_logger.info_msg("on_message: #{inspect msg}\nSending to #{inspect state.final}")
+				# Lager.info("on_message: #{inspect msg}\nSending to #{inspect state.final}")
 				send(state.final, msg)
 				loop(channel, state)
 			{:publish, pub} ->
@@ -145,7 +146,7 @@ defmodule Mqttex.Test.SessionAdapter do
 					:error ->
 						case Mqttex.ProtocolManager.dispatch_sender(state.senders, msg) do
 							:error ->
-								IO.puts ("MqttexSessionAdapter.loop #{inspect self}: got unknown message #{inspect msg}")
+								Lager.error("#{__MODULE__}.loop #{inspect self}: got unknown message #{inspect msg}")
 								send(state.final, msg)
 								# raise binary_to_atom("#{inspect msg}")
 							_ -> :ok
