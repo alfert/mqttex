@@ -60,25 +60,6 @@ defmodule Mqttex.Server do
 		:gen_fsm.send_event(server, {:receive, msg})
 	end
 
-	@doc """
-	Deprecated call to simulate a ping message.
-	"""
-	@spec ping(pid, Mqttex.PingReqMsg.t) :: Mqttex.PingRespMsg
-	def ping(server, Mqttex.PingReqMsg[] = _ping_req) do
-		:error_logger.error_msg("Deprecated call")
-		:pong =  :gen_fsm.sync_send_event(server, :ping)
-		Mqttex.PingRespMsg.new
-	end
-	
-	@doc """
-	Deprecated call to disconnect the server.
-	"""
-	@spec disconnect(pid, Mqttex.DisconnectMsg.t) :: :ok
-	def disconnect(server, disconnect_msg) do
-		:error_logger.error_msg("Deprecated call")
-		:gen_fsm.send_event(server, {:receive, disconnect_msg})
-	end
-
 	@doc "Internal function for stopping the server"
 	@spec stop(pid) :: :ok
 	def stop(server) do
