@@ -88,15 +88,15 @@ defmodule Mqttex.SubscriberSet do
 	Inserts an element into the subscriber set. It is checked, that the structure
 	of the element fits to the above defined structure
 	"""
-	def put(sroot(size: size, root: root), value = {ep, ev}) 
-		when is_binary(ep) and is_tuple(ev) # and 2 == tuple_size(ev) # COMPILER BUG
-		do
+	def put(sroot(size: size, root: root), _value = {ep, ev}) 
+		when is_binary(ep) and is_tuple(ev) and 2 == tuple_size(ev) do # COMPILER BUG
+	
 		{abs, p} = convert_path(ep)
-		{counter, new_root} = do_put(root, abs, p, value)
+		{counter, new_root} = do_put(root, abs, p, ev)
 		sroot(root: new_root, size: size + counter)
 	end
 		
-	defp do_put(s, true, p, ev) do
+	defp do_put(s, true, p, ev) when is_list(p) and is_binary(elem(ev, 0)) and is_atom(elem(ev, 1)) do
 		# add a "/" entry on top of p
 		do_put(s, ["/" | p], ev)
 	end
@@ -130,7 +130,7 @@ defmodule Mqttex.SubscriberSet do
 		old_size = length(leafs)
 		leaf = sleaf(client_id: c, qos: q)
 		# filter out any old subscriptions for the same client and add the new one
-		new_leafs = [leaf | Enum.filter(leafs, fn({client, _} -> client == c) end)]
+		new_leafs = [leaf | Enum.filter(leafs, fn(sleaf(client_id: client) -> client != c) end)]
 		{length(new_leafs) - old_size, new_leafs}
 	end
 
