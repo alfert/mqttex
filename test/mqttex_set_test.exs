@@ -14,12 +14,31 @@ defmodule MqttexSetTest do
 	test "put one element into the set" do
 		s = Mqttex.SubscriberSet.new()
 		ep = "/hello/world"
-		ev = {:my_client, :fire_and_forget}
+		ev = {"my_client", :fire_and_forget}
 		e  = {ep, ev}
 		s1 = Mqttex.SubscriberSet.put(s, e)
 
 		assert Mqttex.SubscriberSet.size(s1) == 1
-		IO.inspect s1
+		#IO.inspect s1
+	end
+
+	test "put two elements in the set" do
+		s = Mqttex.SubscriberSet.new()
+		e1 = {"/hello/world", {"my_client", :fire_and_forget}}
+		s1 = Mqttex.SubscriberSet.put(s, e1)
+
+		assert Mqttex.SubscriberSet.size(s1) == 1
+
+		e2 = {"/hello/world/x", {"my_client", :fire_and_forget}}
+		s2 = Mqttex.SubscriberSet.put(s1, e2)
+
+		assert Mqttex.SubscriberSet.size(s2) == 2
+		# IO.inspect s2
+
+		e3 = {"/hello/world", {"my_client", :at_least_once}}
+		s3 = Mqttex.SubscriberSet.put(s2, e3)
+		IO.inspect s3
+		assert Mqttex.SubscriberSet.size(s3) == 2	
 	end
 
 	test "validity of topic paths" do
