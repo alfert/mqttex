@@ -22,23 +22,21 @@ defmodule MqttexSetTest do
 		#IO.inspect s1
 	end
 
-	test "put two elements in the set" do
-		s = Mqttex.SubscriberSet.new()
-		e1 = {"/hello/world", {"my_client", :fire_and_forget}}
-		s1 = Mqttex.SubscriberSet.put(s, e1)
+	test "put several elements in the set" do
+		s0 = Mqttex.SubscriberSet.new()
+		es = [{1, {"/hello/world", {"my_client", :fire_and_forget}}}, 
+		 {2, {"/hello/world/x", {"my_client", :fire_and_forget}}},
+		 {2, {"/hello/world", {"my_client", :at_least_once}}},
+		 {3, {"/hello/+", {"my_client", :fire_and_forget}}},
+		 {4, {"/hello/#", {"my_client", :at_least_once}}}
+		]
 
-		assert Mqttex.SubscriberSet.size(s1) == 1
-
-		e2 = {"/hello/world/x", {"my_client", :fire_and_forget}}
-		s2 = Mqttex.SubscriberSet.put(s1, e2)
-
-		assert Mqttex.SubscriberSet.size(s2) == 2
-		# IO.inspect s2
-
-		e3 = {"/hello/world", {"my_client", :at_least_once}}
-		s3 = Mqttex.SubscriberSet.put(s2, e3)
-		IO.inspect s3
-		assert Mqttex.SubscriberSet.size(s3) == 2	
+		 Enum.reduce(es, s0, fn({c, e}, s) ->
+		 	s1 = Mqttex.SubscriberSet.put(s, e)
+		 	c1 = Mqttex.SubscriberSet.size(s1)
+			assert c1 == c, "#{c1} == #{c} in Context of\ns1 = #{inspect s1}"
+			s1 end
+		 	)
 	end
 
 	test "validity of topic paths" do
