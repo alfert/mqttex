@@ -134,6 +134,24 @@ defmodule Mqttex.SubscriberSet do
 		{length(new_leafs) - old_size, new_leafs}
 	end
 
+	@doc """
+	Checks if an element is in the subscriber set. Returns `true` if found, else `false`.
+	"""
+	def member?(sroot(root: root), {ep, ev}) do
+		p = convert_path(ep)
+		leafs = find_leafs(root, p)
+		# search in leafs for ev
+		Enum.any?(leafs, fn(sleaf(client_id: c, qos: q)) -> {c, q} == ev end)
+	end
+	
+	defp find_leafs(s, {true, p}), do: find_leafs(s, ["/" | p])
+	defp find_leafs(s, {false, p}), do: find_leafs(s, p)
+	defp find_leafs(snode(leafs: ls), []), do: ls
+	defp find_leafs(snode(hash: h), ["#"]), do: h
+	defp find_leafs(snode(children: cs), [h | tail]) do
+		find_leafs(cs[h], tail)
+	end
+
 	@doc "Convert the path into a path list and checks the syntax for MQTT wildcard topic paths"	
 	def convert_path(ep) when is_binary(ep) do
 		{abs, p} = split(ep)
@@ -169,5 +187,12 @@ defmodule Mqttex.SubscriberSet do
 			:false -> check(tail)
 		end
 	end
+
+	## Implementing the Enum-Interface 
+	# defimpl Enumerable, for [sroot] do
+	#   	def reduce(set, acc, fun), do: HashSet.reduce(set, acc, fun)
+	#   	def member?(set, v),       do: { :ok, SubScriberSet.member?(set, v) }
+ #  	  	def count(set),            do: { :ok, SubScriberSet.size(set) }
+	# end
 
 end

@@ -39,8 +39,31 @@ defmodule MqttexSetTest do
 		 	)
 	end
 
+	test "Check the membership" do 
+		s0 = Mqttex.SubscriberSet.new()
+		es = [{false, {"/hello/world", {"my_client", :fire_and_forget}}}, 
+		 {true, {"/hello/world/x", {"my_client", :fire_and_forget}}},
+		 {true, {"/hello/world", {"my_client", :at_least_once}}},
+		 {true, {"/hello/+", {"my_client", :fire_and_forget}}},
+		 {true, {"/hello/#", {"my_client", :at_least_once}}}
+		]
+		# insert all subscriptions of es
+		s = Enum.reduce(es, s0, fn({_, e}, s) -> Mqttex.SubscriberSet.put(s, e) end)
+		# check that all subscriptions are there or not	
+		Enum.each(es, fn({there?, e}) -> 
+			b = Mqttex.SubscriberSet.member?(s, e) 
+			assert there? == b,	"#{there?} == #{b}, for e = #{inspect e} in\n #{inspect s}"
+			end)
+	end
+
+	#
+	# TO SUPPORT PROPER, A LIST REPRESENTATION WOULD BE HELPFUL
+	# ==> IMPLEMENT ENUMERABLE-INTERFACE?
+	# 
+
+
 	test "validity of topic paths" do
-		assert {true, p} = Mqttex.SubscriberSet.convert_path("/xxx") 
+		assert {true, _p} = Mqttex.SubscriberSet.convert_path("/xxx") 
 		
 		f = fn(x) -> (x |> Mqttex.SubscriberSet.convert_path |> Mqttex.SubscriberSet.join) end
 		
