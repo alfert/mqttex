@@ -217,7 +217,7 @@ defmodule Mqttex.SubscriberSet do
 	def do_reduce(_s, _p, {:halt, acc}, _fun, _next), do: {:halted, acc}
 	def do_reduce(s, p, {:suspend, acc}, fun, next), do: {:suspended, acc, &do_reduce(s, p, &1, fun, next)}
 	def do_reduce(snode(leafs: ls, hash: hs, children: cs), p, {:cont, acc}, fun, next) do
-		do_reduce_list(ls, p, acc, fun, 
+		do_reduce_list(ls, p, {:cont, acc}, fun, 
 			fn(a1) -> do_reduce_list(hs, p, a1, fun, 
 				fn(a2) -> do_reduce_dict(Dict.to_list(cs), p, a2, fun, next) end)
 			end)
@@ -230,12 +230,12 @@ defmodule Mqttex.SubscriberSet do
 	def do_reduce_list(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
 	def do_reduce_list(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_list(l, p, &1, f, n)}
 	def do_reduce_list([], p, acc, fun, next_after) do 
-		IO.puts("Empty list for path <#{p}>")
+		# IO.puts("Empty list for path <#{p}>")
 		next_after.(acc)
 	end
 	def do_reduce_list([sleaf() = head | tail], p, {:cont, acc}, fun, next_after) do
 		v = make_value(Enum.reverse(p), head)
-		IO.puts "Value = #{v}"
+		# IO.puts "Value = #{inspect v}"
 		do_reduce_list(tail, p, fun.(v, acc), fun, next_after)
 	end
 
@@ -243,10 +243,11 @@ defmodule Mqttex.SubscriberSet do
 	def do_reduce_dict(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
 	def do_reduce_dict(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_dict(l, p, &1, f, n)}
 	def do_reduce_dict([], p, acc, fun, next_after) do 
-		next_after.acc
+		next_after.(acc)
 	end
-	def do_reduce_dict([{p0, snodes} | tail], p, {:cont, acc}, fun, next_after) do
-		do_reduce_list(snodes, [p0 | p], {:cont, acc}, fun,
+	def do_reduce_dict([h = {p0, snode} | tail], p, {:cont, acc}, fun, next_after) do
+		# IO.puts "reduce_dict for #{inspect h} and acc #{inspect acc}"
+		do_reduce(snode, [p0 | p], {:cont, acc}, fun,
 			&do_reduce_dict(tail, p, &1, fun, next_after))
 	end
 
