@@ -71,7 +71,7 @@ defmodule Mqttex.SubscriberSet do
 		qos: :fire_and_forget :: :fire_and_forget | :at_least_once | :at_most_once
 
 	# the root node holds the size and the "real" root snode
-	defrecordp :sroot,
+	defrecordp :sroot, Mqttex.SubscriberSet, 
 		size: 0 :: integer,
 		root: nil  :: snode_t
 
@@ -207,14 +207,8 @@ defmodule Mqttex.SubscriberSet do
 	defp do_reduceALT(s, {:cont, acc}, fun, next) do
 	end
 
-	# def reduce(_,     { :halt, acc }, _fun),   do: { :halted, acc }
-	# def reduce(list,  { :suspend, acc }, fun), do: { :suspended, acc, &reduce(list, &1, fun) }
-	# def reduce([],    { :cont, acc }, _fun),   do: { :done, acc }
-	# def reduce([h|t], { :cont, acc }, fun),    do: reduce(t, fun.(h, acc), fun)
-
-
 	def reduce(sroot(root: root), acc, fun) do 
-		do_reduce(root, [], {:cont, acc}, fun, fn # next function
+		do_reduce(root, [], {:cont, acc}, fun, fn # next function for the root node
 			{:halt, acc} -> {:halted, acc} # stop the reducer from the outside
 			{:cont, acc} -> {:done, acc} # we are ready with iterating
 			{:suspend, acc} -> {:suspended, acc, &({:done, &1})} # stop after suspend
@@ -225,25 +219,27 @@ defmodule Mqttex.SubscriberSet do
 	def do_reduce(snode(leafs: ls, hash: hs, children: cs), p, {:cont, acc}, fun, next) do
 		do_reduce_list(ls, p, acc, fun, 
 			fn(a1) -> do_reduce_list(hs, p, a1, fun, 
-				fn(a2) -> do_reduce_dict(Dict.to_list(cs), p, a2, fun, next)end)
+				fn(a2) -> do_reduce_dict(Dict.to_list(cs), p, a2, fun, next) end)
 			end)
 	end	
 	def do_reduce(_s, [], acc, _fun, next ) do
-		next . acc # all elements are done, next of acc will end any iteration.
+		next.(acc) # all elements are done, next of acc will end any iteration.
 	end
 
 	# reduce a list of leafs
 	def do_reduce_list(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
 	def do_reduce_list(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_list(l, p, &1, f, n)}
 	def do_reduce_list([], p, acc, fun, next_after) do 
-		next_after.acc
+		IO.puts("Empty list for path <#{p}>")
+		next_after.(acc)
 	end
 	def do_reduce_list([sleaf() = head | tail], p, {:cont, acc}, fun, next_after) do
-		v = make_value(p, head)
+		v = make_value(Enum.reverse(p), head)
+		IO.puts "Value = #{v}"
 		do_reduce_list(tail, p, fun.(v, acc), fun, next_after)
 	end
 
-	# reduce a dictionary with a list as value
+	# reduce a dictionary with a dictionary as value
 	def do_reduce_dict(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
 	def do_reduce_dict(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_dict(l, p, &1, f, n)}
 	def do_reduce_dict([], p, acc, fun, next_after) do 
@@ -275,11 +271,11 @@ defmodule Mqttex.SubscriberSet do
 	end
 
 
-	## Implementing the Enum-Interface 
-	# defimpl Enumerable, for [sroot] do
-	#   	def reduce(set, acc, fun), do: HashSet.reduce(set, acc, fun)
-	#   	def member?(set, v),       do: { :ok, SubScriberSet.member?(set, v) }
- #  	  	def count(set),            do: { :ok, SubScriberSet.size(set) }
-	# end
+	# Implementing the Enum-Interface 
+	defimpl Enumerable, for: [Mqttex.SubscriberSet] do
+	  	def reduce(set, acc, fun), do: Mqttex.SubscriberSet.reduce(set, acc, fun)
+	  	def member?(set, v),       do: { :ok, Mqttex.SubscriberSet.member?(set, v) }
+  	  	def count(set),            do: { :ok, Mqttex.SubscriberSet.size(set) }
+	end
 
 end

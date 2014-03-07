@@ -4,7 +4,7 @@ defmodule MqttexSetTest do
 
 	test "fresh and empty Set" do
 		s = Mqttex.SubscriberSet.new()
-		assert :erlang.element(1, s) == :sroot
+		assert :erlang.element(1, s) == Mqttex.SubscriberSet
 		assert 0 == Mqttex.SubscriberSet.size(s)
 
 		e = Mqttex.SubscriberSet.empty(s)
@@ -54,6 +54,10 @@ defmodule MqttexSetTest do
 			b = Mqttex.SubscriberSet.member?(s, e) 
 			assert there? == b,	"#{there?} == #{b}, for e = #{inspect e} in\n #{inspect s}"
 			end)
+		IO.puts "The print function"
+		Mqttex.SubscriberSet.print(s)
+		IO.puts "The reducer / Enum.each"
+		Enum.each(s, fn(e) -> IO.inspect(e) end)
 	end
 
 	#
