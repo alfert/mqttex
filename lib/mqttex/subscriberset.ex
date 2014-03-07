@@ -103,7 +103,7 @@ defmodule Mqttex.SubscriberSet do
 	defp do_put(s, false, p, ev), do: do_put(s, p, ev) # simple recursive descent
 
 	defp do_put(snode(leafs: ls) = s, [], ev) do
-		# End of path component, make a new Leaf with the value
+		# end of path component, make a new Leaf with the value
 		{counter, ls_new} = add_leaf(ls, ev)
 		{counter, snode(s, leafs: ls_new)}
 	end
@@ -173,7 +173,9 @@ defmodule Mqttex.SubscriberSet do
 	def join({abs, path}), do: join(abs, path)
 	def join(true, path),  do: "/#{Enum.join(path, "/")}"
 	def join(false, path), do: Enum.join(path, "/")
-	
+	def join(["/" | path]), do: Enum.join(["/",Enum.join(path, "/")])
+	def join(path) when is_list(path), do: Enum.join(path, "/")
+
 	@doc """
 	Checks that a splitted path contains wildcard symbols at the proper positions only
 	"""
@@ -187,6 +189,91 @@ defmodule Mqttex.SubscriberSet do
 			:false -> check(tail)
 		end
 	end
+
+	def reduceALT(sroot(root: root), acc, fun) do
+		# the anomymous function is the next function.
+		# TODO: CHECK THE NEXT FUNCTION!!!
+	    do_reduceALT(root, acc, fun, fn
+	      {:suspend, acc} -> {:suspended, acc, &{ :done, elem(&1, 1) }}
+	      {:halt, acc}    -> {:halted, acc}
+	      {:cont, acc}    -> {:done, acc}
+	    end)
+	  end
+
+	defp do_reduceALT(_s, {:halt, acc}, _fun, _next), do: {:halted, acc}
+	defp do_reduceALT(s, {:suspend, acc}, fun, next) do
+		{:suspended, acc, &do_reduceALT(s, &1, fun, next)}
+	end
+	defp do_reduceALT(s, {:cont, acc}, fun, next) do
+	end
+
+	# def reduce(_,     { :halt, acc }, _fun),   do: { :halted, acc }
+	# def reduce(list,  { :suspend, acc }, fun), do: { :suspended, acc, &reduce(list, &1, fun) }
+	# def reduce([],    { :cont, acc }, _fun),   do: { :done, acc }
+	# def reduce([h|t], { :cont, acc }, fun),    do: reduce(t, fun.(h, acc), fun)
+
+
+	def reduce(sroot(root: root), acc, fun) do 
+		do_reduce(root, [], {:cont, acc}, fun, fn # next function
+			{:halt, acc} -> {:halted, acc} # stop the reducer from the outside
+			{:cont, acc} -> {:done, acc} # we are ready with iterating
+			{:suspend, acc} -> {:suspended, acc, &({:done, &1})} # stop after suspend
+		end)
+	end
+	def do_reduce(_s, _p, {:halt, acc}, _fun, _next), do: {:halted, acc}
+	def do_reduce(s, p, {:suspend, acc}, fun, next), do: {:suspended, acc, &do_reduce(s, p, &1, fun, next)}
+	def do_reduce(snode(leafs: ls, hash: hs, children: cs), p, {:cont, acc}, fun, next) do
+		do_reduce_list(ls, p, acc, fun, 
+			fn(a1) -> do_reduce_list(hs, p, a1, fun, 
+				fn(a2) -> do_reduce_dict(Dict.to_list(cs), p, a2, fun, next)end)
+			end)
+	end	
+	def do_reduce(_s, [], acc, _fun, next ) do
+		next . acc # all elements are done, next of acc will end any iteration.
+	end
+
+	# reduce a list of leafs
+	def do_reduce_list(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
+	def do_reduce_list(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_list(l, p, &1, f, n)}
+	def do_reduce_list([], p, acc, fun, next_after) do 
+		next_after.acc
+	end
+	def do_reduce_list([sleaf() = head | tail], p, {:cont, acc}, fun, next_after) do
+		v = make_value(p, head)
+		do_reduce_list(tail, p, fun.(v, acc), fun, next_after)
+	end
+
+	# reduce a dictionary with a list as value
+	def do_reduce_dict(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
+	def do_reduce_dict(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_dict(l, p, &1, f, n)}
+	def do_reduce_dict([], p, acc, fun, next_after) do 
+		next_after.acc
+	end
+	def do_reduce_dict([{p0, snodes} | tail], p, {:cont, acc}, fun, next_after) do
+		do_reduce_list(snodes, [p0 | p], {:cont, acc}, fun,
+			&do_reduce_dict(tail, p, &1, fun, next_after))
+	end
+
+	@doc """
+	Print all elements. 
+
+	This is an example for a reducer-like function.
+	"""
+	def print(sroot(root: root)), do: print(root, [])
+
+	def print(snode(hash: hs, children: cs, leafs: ls), path) do
+		Enum.each(ls, &print(&1, path))
+		Enum.each(hs, &print(&1, path))
+		Enum.each(cs, fn({k, v}) -> print(v, [k | path]) end)
+	end
+	def print(sleaf() = l, path) do
+		IO.inspect(make_value(Enum.reverse(path), l))
+	end
+
+	defp make_value(path, sleaf(client_id: c, qos: q)) do
+		{join(path), {c, q}}
+	end
+
 
 	## Implementing the Enum-Interface 
 	# defimpl Enumerable, for [sroot] do
