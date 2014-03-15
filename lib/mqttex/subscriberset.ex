@@ -1,5 +1,6 @@
 defmodule Mqttex.SubscriberSet do
-	
+
+	require Lager	
 	@moduledoc """
 	A library module for the set of all subscriptions. Essentially, this datastructure
 	implements a set functionality but not as a generic datatructure, but one expects 
@@ -162,30 +163,50 @@ defmodule Mqttex.SubscriberSet do
 	def delete(snode()=s, {true, p}, ev), do: delete(s, ["/"| p], ev)
 	def delete(snode()=s, {false, p}, ev), do: delete(s, p, ev)		
 	def delete(snode(leafs: ls)=s, [], ev) do 
+		Lager.info("delete - leafs = #{inspect ls}, path  = []")
 		{ls_new, delta, size} = delete_from_list(ls, ev)
+		Lager.info("delete - new_leafs = #{inspect ls_new}, path  = []")
 		{snode(s, leafs: ls_new), delta, size}
 	end
 	def delete(snode(hash: hs)=s, ["#"], ev) do 
 		{hs_new, delta, size} = delete_from_list(hs, ev)
-		{snode(s, hash: hs_new), delta, size}
+		new_s = snode(s, hash: hs_new)
+		{new_s, delta, size_snode(new_s)}
 	end
 	def delete(snode(children: cs) = s, [h | tail], ev) do
-		{new_cs, delta, size} = delete(cs[h], tail, ev)
-		case {delta, size, Dict.size(new_cs)} do 
+		Lager.info("delete - children = #{inspect cs}, path  = #{inspect h}")
+		{new_cs_h, delta, size} = delete(cs[h], tail, ev)
+		lh = length(snode(s, :hash))
+		ll = length(snode(s, :leafs))
+		case {delta, size} do 
 			{1, 0} -> # cs[h] is empty and can be dropped. 
-				# but can we drop the node?
+				Lager.info("Drop cs[#{inspect h}]")
 				new_cs = Dict.delete(cs, h)
-				lh = length(s.hash)
-				ll = length(s.leafs)
-				{snode(cs, children: new_cs), 1, lh + ll}
-			_  -> {snode(s, children: Dict.put(cs, h, new_cs)), delta, size}
+				Lager.info("new_cs is #{inspect new_cs}")
+				new_s = snode(s, children: new_cs)
+				Lager.info("new snode is #{inspect new_s}")
+				{new_s, 1, size_snode(new_s)}
+			_  -> 
+				Lager.info("Update cs[#{inspect h}]")
+				new_s = snode(s, children: Dict.put(cs, h, new_cs_h))
+				{new_s, delta, size_snode(new_s) }
 		end	
 	end
-	
 
-	defp delete_from_list(l, value) do
+	defp size_snode(snode(hash: hs, children: cs, leafs: ls)) do
+		length(hs) + length(ls) + Dict.size(cs)
+	end
+	defp size_snode(any) do
+		Lager.error("size_snode got argument #{inspect any}")
+		0 = 1
+	end
+
+	defp delete_from_list(l, {client, _qos}) do
+		Lager.info("delete_from_list: client = #{inspect client} from #{inspect l}")
 		size = length(l)
-		new_l = List.delete(l, value)
+		new_l = Enum.filter(l, 
+			fn  (sleaf(client_id: ^client)) -> false
+				(_ ) -> true end)
 		{new_l, size - length(new_l), length(new_l)}
 	end
 

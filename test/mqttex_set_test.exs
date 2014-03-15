@@ -114,9 +114,23 @@ defmodule MqttexSetTest do
 		# insert all subscriptions of es
 		s = Enum.reduce(l, s0, &(Mqttex.SubscriberSet.put(&2, &1)))
 		
-		ls = Enum.to_list(s)
-		assert Enum.sort(ls) == Enum.sort(l)
-		flunk "not implemented"
+		:random.seed({0,0,0})
+		t = fn(_s, [], _n)  -> true
+			  (s, l = [h | t], next) -> 
+			index = case t do 
+				[] -> 0
+				_  -> :random.uniform(Enum.count(l))-1
+			end
+			{:ok, e} = Enum.fetch(l, index)
+			Lager.info "Delete #{inspect e}"
+			l1 = List.delete(l, e)
+			s1 = Mqttex.SubscriberSet.delete(s, e)
+			ls = Enum.to_list(s1)
+			assert Enum.sort(ls) == Enum.sort(l1)
+			next.(s1, l1, next)
+			end
+		t.(s, l, t)
+		
 	end
 
 	test "validity of topic paths" do
