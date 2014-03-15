@@ -122,7 +122,7 @@ defmodule MqttexSetTest do
 				_  -> :random.uniform(Enum.count(l))-1
 			end
 			{:ok, e} = Enum.fetch(l, index)
-			Lager.info "Delete #{inspect e}"
+			Lager.debug "Delete #{inspect e}"
 			l1 = List.delete(l, e)
 			s1 = Mqttex.SubscriberSet.delete(s, e)
 			ls = Enum.to_list(s1)

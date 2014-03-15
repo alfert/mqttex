@@ -163,9 +163,9 @@ defmodule Mqttex.SubscriberSet do
 	def delete(snode()=s, {true, p}, ev), do: delete(s, ["/"| p], ev)
 	def delete(snode()=s, {false, p}, ev), do: delete(s, p, ev)		
 	def delete(snode(leafs: ls)=s, [], ev) do 
-		Lager.info("delete - leafs = #{inspect ls}, path  = []")
+		Lager.debug("delete - leafs = #{inspect ls}, path  = []")
 		{ls_new, delta, size} = delete_from_list(ls, ev)
-		Lager.info("delete - new_leafs = #{inspect ls_new}, path  = []")
+		Lager.debug("delete - new_leafs = #{inspect ls_new}, path  = []")
 		{snode(s, leafs: ls_new), delta, size}
 	end
 	def delete(snode(hash: hs)=s, ["#"], ev) do 
@@ -174,20 +174,20 @@ defmodule Mqttex.SubscriberSet do
 		{new_s, delta, size_snode(new_s)}
 	end
 	def delete(snode(children: cs) = s, [h | tail], ev) do
-		Lager.info("delete - children = #{inspect cs}, path  = #{inspect h}")
+		Lager.debug("delete - children = #{inspect cs}, path  = #{inspect h}")
 		{new_cs_h, delta, size} = delete(cs[h], tail, ev)
 		lh = length(snode(s, :hash))
 		ll = length(snode(s, :leafs))
 		case {delta, size} do 
 			{1, 0} -> # cs[h] is empty and can be dropped. 
-				Lager.info("Drop cs[#{inspect h}]")
+				Lager.debug("Drop cs[#{inspect h}]")
 				new_cs = Dict.delete(cs, h)
-				Lager.info("new_cs is #{inspect new_cs}")
+				Lager.debug("new_cs is #{inspect new_cs}")
 				new_s = snode(s, children: new_cs)
-				Lager.info("new snode is #{inspect new_s}")
+				Lager.debug("new snode is #{inspect new_s}")
 				{new_s, 1, size_snode(new_s)}
 			_  -> 
-				Lager.info("Update cs[#{inspect h}]")
+				Lager.debug("Update cs[#{inspect h}]")
 				new_s = snode(s, children: Dict.put(cs, h, new_cs_h))
 				{new_s, delta, size_snode(new_s) }
 		end	
@@ -202,7 +202,7 @@ defmodule Mqttex.SubscriberSet do
 	end
 
 	defp delete_from_list(l, {client, _qos}) do
-		Lager.info("delete_from_list: client = #{inspect client} from #{inspect l}")
+		Lager.debug("delete_from_list: client = #{inspect client} from #{inspect l}")
 		size = length(l)
 		new_l = Enum.filter(l, 
 			fn  (sleaf(client_id: ^client)) -> false
