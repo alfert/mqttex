@@ -33,7 +33,7 @@ defmodule Mqttex do
   	
 
 
-  	@type qos_type :: :fire_and_forget | :ack_delivery | :assured_delivery
+  	@type qos_type :: :fire_and_forget | :at_least_once | :at_most_once
 	@type message_type :: :connect | :conn_ack | :publish | :pub_ack |
 						:pub_rec | :pub_rel | :pub_comp | :subscribe |
 						:sub_ack | :unsubscribe | :unsub_ack | 
