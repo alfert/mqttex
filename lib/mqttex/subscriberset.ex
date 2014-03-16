@@ -59,7 +59,12 @@ defmodule Mqttex.SubscriberSet do
 
 	"""
 
-
+	@doctype "A splitted path which first components `true` for an absolute path"
+	@type splitted_path :: { true | false, list(String.t)}
+	@opaque subscription_set :: sroot_t
+	@type subscriber :: {  binary, Mqttex.qos_type } 
+	@type path :: binary
+	@type subscription :: { path, subscriber }
 
 	# The data structure is a n-ary tree, walking down the path elements. 
 	defrecordp :snode, # maps topic_path elements to a list of nodes or leafs
@@ -70,7 +75,7 @@ defmodule Mqttex.SubscriberSet do
 	# only leafs in the tree hold the value
 	defrecordp :sleaf,
 		client_id: "" :: binary,
-		qos: :fire_and_forget :: :fire_and_forget | :at_least_once | :at_most_once
+		qos: :fire_and_forget :: Mqttex.qos_type
 
 	# the root node holds the size and the "real" root snode
 	defrecordp :sroot, Mqttex.SubscriberSet, 
@@ -78,19 +83,35 @@ defmodule Mqttex.SubscriberSet do
 		root: nil  :: snode_t
 
 	@doc "Returns a new empty SubscriberSet"
+	@spec new :: subscription_set
 	def new(), do: sroot(root: snode())
 
 	@doc "a fresh empty set of the same type"
+	@spec empty(subscription_set) :: subscription_set
 	def empty(sroot()), do: new()
 
 	@doc "size of the subscriber set"	
+	@spec size(subscription_set) :: non_neg_integer
 	def size(sroot(size: size)), do: size
+
+
+	@doc """
+	Matches a path with all subscriptions and returns all matched clients. 
+
+
+	"""
+	def match(s, path) do
+		
+	end
+	
 	
 	@doc """
-	Inserts an element into the subscriber set. It is checked, that the structure
-	of the element fits to the above defined structure
+	Inserts an element into the subscriber set. 
+
+	It is checked, that the structure of the element fits to the above defined structure.
 	"""
-	def put(sroot(size: size, root: root), _value = {ep, ev}) 
+	@spec put(subscription_set, subscription) :: subscription_set
+	def put(set = sroot(size: size, root: root), _value = {ep, ev}) 
 		when is_binary(ep) and is_tuple(ev) and 2 == tuple_size(ev) do # COMPILER BUG
 	
 		{abs, p} = convert_path(ep)
@@ -139,7 +160,8 @@ defmodule Mqttex.SubscriberSet do
 	@doc """
 	Checks if an element is in the subscriber set. Returns `true` if found, else `false`.
 	"""
-	def member?(sroot(root: root), {ep, ev}) do
+	@spec member?(subscription_set, subscription) :: boolean
+	def member?(_set = sroot(root: root), _element = {ep, ev}) do
 		p = convert_path(ep)
 		leafs = find_leafs(root, p)
 		# search in leafs for ev
@@ -155,27 +177,27 @@ defmodule Mqttex.SubscriberSet do
 	end
 
 	@doc "Deletes an element from the set"
-	# TODO: Test TEST Test! speziell auch das löschen von pfaden
+	@spec delete(subscription_set, subscription) :: subscription_set
 	def delete(sroot(root: root, size: size), {ep, ev}) do
 		p = convert_path(ep)
 		{new_root, delta, size} = delete(root, p, ev)
 		sroot(root: new_root, size: size - delta)
 	end
-	def delete(snode()=s, {true, p}, ev), do: delete(s, ["/"| p], ev)
-	def delete(snode()=s, {false, p}, ev), do: delete(s, p, ev)		
-	def delete(snode(leafs: ls)=s, [], ev) do 
+	defp delete(snode()=s, {true, p}, ev), do: delete(s, ["/"| p], ev)
+	defp delete(snode()=s, {false, p}, ev), do: delete(s, p, ev)		
+	defp delete(snode(leafs: ls)=s, [], ev) do 
 		Lager.debug("delete - leafs = #{inspect ls}, path  = []")
 		{ls_new, delta, size} = delete_from_list(ls, ev)
 		Lager.debug("delete - new_leafs = #{inspect ls_new}, path  = []")
 		new_s = snode(s, leafs: ls_new)
 		{new_s, delta, size_snode(new_s)}
 	end
-	def delete(snode(hash: hs)=s, ["#"], ev) do 
+	defp delete(snode(hash: hs)=s, ["#"], ev) do 
 		{hs_new, delta, size} = delete_from_list(hs, ev)
 		new_s = snode(s, hash: hs_new)
 		{new_s, delta, size_snode(new_s)}
 	end
-	def delete(snode(children: cs) = s, [h | tail], ev) do
+	defp delete(snode(children: cs) = s, [h | tail], ev) do
 		Lager.debug("delete - children = #{inspect cs}, path  = #{inspect h}")
 		{new_cs_h, delta, size} = delete(cs[h], tail, ev)
 		lh = length(snode(s, :hash))
@@ -195,6 +217,7 @@ defmodule Mqttex.SubscriberSet do
 		end	
 	end
 
+	# returns the number of the snode's outgoing elements (leafs, children, hashes)
 	defp size_snode(snode(hash: hs, children: cs, leafs: ls)) do
 		length(hs) + length(ls) + Dict.size(cs)
 	end
@@ -207,12 +230,13 @@ defmodule Mqttex.SubscriberSet do
 		Lager.debug("delete_from_list: client = #{inspect client} from #{inspect l}")
 		size = length(l)
 		new_l = Enum.filter(l, 
-			fn  (sleaf(client_id: ^client)) -> false
+			fn  (sleaf(client_id: c)) when c == client -> false
 				(_ ) -> true end)
 		{new_l, size - length(new_l), length(new_l)}
 	end
 
-	@doc "Convert the path into a path list and checks the syntax for MQTT wildcard topic paths"	
+	@doc "Convert the path into a path list and checks the syntax for MQTT wildcard topic paths"
+	@spec convert_path(path) :: splitted_path
 	def convert_path(ep) when is_binary(ep) do
 		{abs, p} = split(ep)
 		case check(p) do
@@ -222,6 +246,12 @@ defmodule Mqttex.SubscriberSet do
 	end
 	
 	# implement split & join locally, since default implementations are platform dependent
+	@doc """
+	Splits a path into its sub-elements. 
+
+	If the path is absolute (i.e. with leading `"/"`), returns true as first component. 
+	"""
+	@spec split(path) :: splitted_path
 	def split(path) do
 		p = String.split(path, "/")
 		case p do
@@ -230,15 +260,21 @@ defmodule Mqttex.SubscriberSet do
 		end
 	end
 
+	@doc "Joins a splitted path back to its string representation."
+	@spec join(boolean, list(binary)) :: path
 	def join(true, path),  do: "/#{Enum.join(path, "/")}"
 	def join(false, path), do: Enum.join(path, "/")
+	@doc "Joins a splitted path back to its string representation."
+	@spec join(splitted_path | [binary]) :: path
 	def join({abs, path}), do: join(abs, path)
+	@doc "Joins a splitted path back to its string representation."
 	def join(["/" | path]), do: Enum.join(["/",Enum.join(path, "/")])
 	def join(path) when is_list(path), do: Enum.join(path, "/")
 
 	@doc """
 	Checks that a splitted path contains wildcard symbols at the proper positions only
 	"""
+	@spec check([binary]) :: :ok | :error
 	def check([]), do: :ok
 	def check(["#"]), do: :ok
 	def check(["+"]), do: :ok
@@ -250,45 +286,50 @@ defmodule Mqttex.SubscriberSet do
 		end
 	end
 
-	def reduce(sroot(root: root), acc, fun) do 
+	@doc """
+	Reducer-function for implementing the `Enumerable` protocol. 
+
+	"""
+	@spec reduce(subscription_set, any, any :: any) :: any
+	def reduce(set = sroot(root: root), acc, fun) do 
 		do_reduce(root, [], acc, fun, fn # next function for the root node
 			{:halt, acc} -> {:halted, acc} # stop the reducer from the outside
 			{:cont, acc} -> {:done, acc} # we are ready with iterating
 			{:suspend, acc} -> {:suspended, acc, &({:done, &1})} # stop after suspend
 		end)
 	end
-	def do_reduce(_s, _p, {:halt, acc}, _fun, _next), do: {:halted, acc}
-	def do_reduce(s, p, {:suspend, acc}, fun, next), do: {:suspended, acc, &do_reduce(s, p, &1, fun, next)}
-	def do_reduce(snode(leafs: ls, hash: hs, children: cs), p, {:cont, acc}, fun, next) do
+	defp do_reduce(_s, _p, {:halt, acc}, _fun, _next), do: {:halted, acc}
+	defp do_reduce(s, p, {:suspend, acc}, fun, next), do: {:suspended, acc, &do_reduce(s, p, &1, fun, next)}
+	defp do_reduce(snode(leafs: ls, hash: hs, children: cs), p, {:cont, acc}, fun, next) do
 		do_reduce_list(ls, p, {:cont, acc}, fun, 
 			fn(a1) -> do_reduce_list(hs, ["#" | p], a1, fun, 
 				fn(a2) -> do_reduce_dict(Dict.to_list(cs), p, a2, fun, next) end)
 			end)
 	end	
-	def do_reduce(_s, [], acc, _fun, next ) do
+	defp do_reduce(_s, [], acc, _fun, next ) do
 		next.(acc) # all elements are done, next of acc will end any iteration.
 	end
 
 	# reduce a list of leafs
-	def do_reduce_list(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
-	def do_reduce_list(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_list(l, p, &1, f, n)}
-	def do_reduce_list([], p, {:cont, acc}, fun, next_after) do 
+	defp do_reduce_list(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
+	defp do_reduce_list(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_list(l, p, &1, f, n)}
+	defp do_reduce_list([], p, {:cont, acc}, fun, next_after) do 
 		# IO.puts("Empty list for path <#{p}>")
 		next_after.({:cont, acc})
 	end
-	def do_reduce_list([sleaf() = head | tail], p, {:cont, acc}, fun, next_after) do
+	defp do_reduce_list([sleaf() = head | tail], p, {:cont, acc}, fun, next_after) do
 		v = make_value(Enum.reverse(p), head)
 		# IO.puts "Value = #{inspect v}"
 		do_reduce_list(tail, p, fun.(v, acc), fun, next_after)
 	end
 
 	# reduce a dictionary with a dictionary as value
-	def do_reduce_dict(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
-	def do_reduce_dict(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_dict(l, p, &1, f, n)}
-	def do_reduce_dict([], p, {:cont, acc}, fun, next_after) do 
+	defp do_reduce_dict(_l, _p, {:halt, acc}, _f, _n), do: {:halted, acc}
+	defp do_reduce_dict(l, p, {:suspend, acc}, f, n), do: {:suspended, acc, &do_reduce_dict(l, p, &1, f, n)}
+	defp do_reduce_dict([], p, {:cont, acc}, fun, next_after) do 
 		next_after.({:cont, acc})
 	end
-	def do_reduce_dict([h = {p0, s0} | tail], p, {:cont, acc}, fun, next_after) do
+	defp do_reduce_dict([h = {p0, s0} | tail], p, {:cont, acc}, fun, next_after) do
 		# IO.puts "reduce_dict for #{inspect h} and acc #{inspect acc}"
 		do_reduce(s0, [p0 | p], {:cont, acc}, fun,
 			&do_reduce_dict(tail, p, &1, fun, next_after))
@@ -297,16 +338,20 @@ defmodule Mqttex.SubscriberSet do
 	@doc """
 	Print all elements. 
 
-	This is an example for a reducer-like function.
+	This is an example for a reducer-like function, which can easily implemented via `Enum`: 
+
+		Enum.each(s, &IO.inspect(&1))
+
 	"""
+	@spec print(subscription_set) :: :ok
 	def print(sroot(root: root)), do: print(root, [])
 
-	def print(snode(hash: hs, children: cs, leafs: ls), path) do
+	defp print(snode(hash: hs, children: cs, leafs: ls), path) do
 		Enum.each(ls, &print(&1, path))
 		Enum.each(hs, &print(&1, ["#" | path]))
 		Enum.each(cs, fn({k, v}) -> print(v, [k | path]) end)
 	end
-	def print(sleaf() = l, path) do
+	defp print(sleaf() = l, path) do
 		IO.inspect(make_value(Enum.reverse(path), l))
 	end
 
