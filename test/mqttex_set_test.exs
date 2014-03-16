@@ -114,22 +114,21 @@ defmodule MqttexSetTest do
 		# insert all subscriptions of es
 		s = Enum.reduce(l, s0, &(Mqttex.SubscriberSet.put(&2, &1)))
 		
-		:random.seed({0,0,0})
-		t = fn(_s, [], _n)  -> true
-			  (s, l = [h | t], next) -> 
-			index = case t do 
-				[] -> 0
-				_  -> :random.uniform(Enum.count(l))-1
-			end
-			{:ok, e} = Enum.fetch(l, index)
+		:random.seed(:erlang.now())
+		indexes = Enum.to_list(5..1) |> Enum.map(&(:random.uniform(&1)-1))
+		# indexes = [0, 2, 1, 1, 0]
+		Lager.info "Indexes for deletes: #{inspect indexes}"
+		t = fn(_s, [], _i, _n)  -> true
+			  (s, l = [h | t], [i | is], next) -> 
+			{:ok, e} = Enum.fetch(l, i)
 			Lager.debug "Delete #{inspect e}"
 			l1 = List.delete(l, e)
 			s1 = Mqttex.SubscriberSet.delete(s, e)
 			ls = Enum.to_list(s1)
 			assert Enum.sort(ls) == Enum.sort(l1)
-			next.(s1, l1, next)
+			next.(s1, l1, is, next)
 			end
-		t.(s, l, t)
+		t.(s, l, indexes, t)
 		
 	end
 
