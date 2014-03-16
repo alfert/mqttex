@@ -60,10 +60,10 @@ defmodule Mqttex.SubscriberSet do
 	"""
 
 	@doctype "A splitted path which first components `true` for an absolute path"
-	@type splitted_path :: { true | false, list(String.t)}
 	@opaque subscription_set :: sroot_t
 	@type subscriber :: {  binary, Mqttex.qos_type } 
 	@type path :: binary
+	@type splitted_path ::[binary]
 	@type subscription :: { path, subscriber }
 
 	# The data structure is a n-ary tree, walking down the path elements. 
@@ -96,12 +96,15 @@ defmodule Mqttex.SubscriberSet do
 
 
 	@doc """
-	Matches a path with all subscriptions and returns all matched clients. 
+	Matches a topic path with all subscriptions and returns all matched clients. 
 
-
+	A topic path does not have any wildcards. But the wildcards in the subscriptions
+	are used to identify all interested clients. 
 	"""
-	def match(s, path) do
-		
+	@spec match(subscription_set, path) :: [subscriber]
+	def match(s, topic_path) do
+		p = split(topic_path)
+
 	end
 	
 	
@@ -114,17 +117,11 @@ defmodule Mqttex.SubscriberSet do
 	def put(set = sroot(size: size, root: root), _value = {ep, ev}) 
 		when is_binary(ep) and is_tuple(ev) and 2 == tuple_size(ev) do # COMPILER BUG
 	
-		{abs, p} = convert_path(ep)
-		{counter, new_root} = do_put(root, abs, p, ev)
+		p = convert_path(ep)
+		{counter, new_root} = do_put(root, p, ev)
 		sroot(root: new_root, size: size + counter)
 	end
 		
-	defp do_put(s, true, p, ev) when is_list(p) and is_binary(elem(ev, 0)) and is_atom(elem(ev, 1)) do
-		# add a "/" entry on top of p
-		do_put(s, ["/" | p], ev)
-	end
-	defp do_put(s, false, p, ev), do: do_put(s, p, ev) # simple recursive descent
-
 	defp do_put(snode(leafs: ls) = s, [], ev) do
 		# end of path component, make a new Leaf with the value
 		{counter, ls_new} = add_leaf(ls, ev)
@@ -168,8 +165,6 @@ defmodule Mqttex.SubscriberSet do
 		Enum.any?(leafs, fn(sleaf(client_id: c, qos: q)) -> {c, q} == ev end)
 	end
 	
-	defp find_leafs(s, {true, p}), do: find_leafs(s, ["/" | p])
-	defp find_leafs(s, {false, p}), do: find_leafs(s, p)
 	defp find_leafs(snode(leafs: ls), []), do: ls
 	defp find_leafs(snode(hash: h), ["#"]), do: h
 	defp find_leafs(snode(children: cs), [h | tail]) do
@@ -183,8 +178,6 @@ defmodule Mqttex.SubscriberSet do
 		{new_root, delta, size} = delete(root, p, ev)
 		sroot(root: new_root, size: size - delta)
 	end
-	defp delete(snode()=s, {true, p}, ev), do: delete(s, ["/"| p], ev)
-	defp delete(snode()=s, {false, p}, ev), do: delete(s, p, ev)		
 	defp delete(snode(leafs: ls)=s, [], ev) do 
 		Lager.debug("delete - leafs = #{inspect ls}, path  = []")
 		{ls_new, delta, size} = delete_from_list(ls, ev)
@@ -236,15 +229,31 @@ defmodule Mqttex.SubscriberSet do
 	end
 
 	@doc "Convert the path into a path list and checks the syntax for MQTT wildcard topic paths"
-	@spec convert_path(path) :: splitted_path
+	@spec convert_path(path) :: splitted_path | {:error, path}
 	def convert_path(ep) when is_binary(ep) do
-		{abs, p} = split(ep)
+		p = split(ep)
 		case check(p) do
-			:ok -> {abs, p}
+			:ok -> p
 			_   -> {:error, ep}
 		end
 	end
 	
+	@doc """
+	Checks that a splitted path contains wildcard symbols at the proper positions only
+	"""
+	@spec check([binary]) :: :ok | :error
+	def check([]), do: :ok
+	def check(["#"]), do: :ok
+	def check(["+"]), do: :ok
+	def check(["+" |tail]), do: check(tail)
+	def check(["/" |tail]), do: check(tail)
+	def check([p | tail]) do
+		case String.contains?(p, ["+", "#", "/"]) do
+			:true  -> :error
+			:false -> check(tail)
+		end
+	end
+
 	# implement split & join locally, since default implementations are platform dependent
 	@doc """
 	Splits a path into its sub-elements. 
@@ -255,36 +264,16 @@ defmodule Mqttex.SubscriberSet do
 	def split(path) do
 		p = String.split(path, "/")
 		case p do
-			["" | tail] -> {true, tail}
-			_           -> {false, p}
+			["" | tail] -> ["/" | tail]
+			_           -> p
 		end
 	end
 
-	@doc "Joins a splitted path back to its string representation."
-	@spec join(boolean, list(binary)) :: path
-	def join(true, path),  do: "/#{Enum.join(path, "/")}"
-	def join(false, path), do: Enum.join(path, "/")
-	@doc "Joins a splitted path back to its string representation."
-	@spec join(splitted_path | [binary]) :: path
-	def join({abs, path}), do: join(abs, path)
 	@doc "Joins a splitted path back to its string representation."
 	def join(["/" | path]), do: Enum.join(["/",Enum.join(path, "/")])
 	def join(path) when is_list(path), do: Enum.join(path, "/")
 
-	@doc """
-	Checks that a splitted path contains wildcard symbols at the proper positions only
-	"""
-	@spec check([binary]) :: :ok | :error
-	def check([]), do: :ok
-	def check(["#"]), do: :ok
-	def check(["+"]), do: :ok
-	def check(["+" |tail]), do: check(tail)
-	def check([p | tail]) do
-		case String.contains?(p, ["+", "#", "/"]) do
-			:true  -> :error
-			:false -> check(tail)
-		end
-	end
+	
 
 	@doc """
 	Reducer-function for implementing the `Enumerable` protocol. 
