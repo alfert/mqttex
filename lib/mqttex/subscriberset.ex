@@ -1,6 +1,7 @@
 defmodule Mqttex.SubscriberSet do
 
 	require Lager	
+
 	@moduledoc """
 	A library module for the set of all subscriptions. Essentially, this datastructure
 	implements a set functionality but not as a generic datatructure, but one expects 
@@ -166,7 +167,8 @@ defmodule Mqttex.SubscriberSet do
 		Lager.debug("delete - leafs = #{inspect ls}, path  = []")
 		{ls_new, delta, size} = delete_from_list(ls, ev)
 		Lager.debug("delete - new_leafs = #{inspect ls_new}, path  = []")
-		{snode(s, leafs: ls_new), delta, size}
+		new_s = snode(s, leafs: ls_new)
+		{new_s, delta, size_snode(new_s)}
 	end
 	def delete(snode(hash: hs)=s, ["#"], ev) do 
 		{hs_new, delta, size} = delete_from_list(hs, ev)
