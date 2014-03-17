@@ -218,7 +218,7 @@ defmodule Mqttex.Server do
 	end
 	def clean_session({:receive, Mqttex.DisconnectMsg[] = _msg}, ConnectionState[]=state) do
 		# TODO: call unsubscribe all topics
-		Logger.debug("Got Disconnect, going to disconnected mode")
+		Lager.debug("Got Disconnect, going to disconnected mode")
 		# no timeout here, we wait forever
 		{:next_state, :clean_disconnect, state}
 	end
