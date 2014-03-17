@@ -19,7 +19,6 @@ defmodule MqttexSetTest do
 		s1 = Mqttex.SubscriberSet.put(s, e)
 
 		assert Mqttex.SubscriberSet.size(s1) == 1
-		#IO.inspect s1
 	end
 
 	test "put several elements in the set" do
@@ -41,12 +40,8 @@ defmodule MqttexSetTest do
 
 	test "Check the membership" do 
 		s0 = Mqttex.SubscriberSet.new()
-		es = [{false, {"/hello/world", {"my_client", :fire_and_forget}}}, 
-		 {true, {"/hello/world/x", {"my_client", :fire_and_forget}}},
-		 {true, {"/hello/world", {"my_client", :at_least_once}}},
-		 {true, {"/hello/+", {"my_client", :fire_and_forget}}},
-		 {true, {"/hello/#", {"my_client", :at_least_once}}}
-		]
+		es = will_survive_insert()
+
 		# insert all subscriptions of es
 		s = Enum.reduce(es, s0, fn({_, e}, s) -> Mqttex.SubscriberSet.put(s, e) end)
 		# check that all subscriptions are there or not	
@@ -58,12 +53,8 @@ defmodule MqttexSetTest do
 
 	test "Check the Enum Representation" do 
 		s0 = Mqttex.SubscriberSet.new()
-		es = [{false, {"/hello/world", {"my_client", :fire_and_forget}}},
-			{true, {"/hello/world/x", {"my_client", :fire_and_forget}}},
-			{true, {"/hello/world", {"my_client", :at_least_once}}},
-			{true, {"/hello/+", {"my_client", :fire_and_forget}}},
-			{true, {"/hello/#", {"my_client", :at_least_once}}}
-		]
+		es = will_survive_insert()
+
 		# insert all subscriptions of es
 		s = Enum.reduce(es, s0, fn({_, e}, s) -> Mqttex.SubscriberSet.put(s, e) end)
 
@@ -81,12 +72,7 @@ defmodule MqttexSetTest do
 	test "check partial equal function" do
 		s0 = Mqttex.SubscriberSet.new()
 		# es = [{unique_id, subscriber}] where unique_id is equal for "equal" subscriptions
-		es = [{1, {"/hello/world", {"my_client", :fire_and_forget}}}, 
-		 {2, {"/hello/world/x", {"my_client", :fire_and_forget}}},
-		 {1, {"/hello/world", {"my_client", :at_least_once}}},
-		 {3, {"/hello/+", {"my_client", :fire_and_forget}}},
-		 {4, {"/hello/#", {"my_client", :at_least_once}}}
-		]
+		es = mark_same_prefix
 
 		# check eq function
 		Enum.each(es, fn({n, p}) -> 
@@ -95,8 +81,8 @@ defmodule MqttexSetTest do
 					true -> assert eq_sub(p, p1)
 					false -> assert not eq_sub(p, p1)
 				end
-				end)
 			end)
+		end)
 	end
 
 	test "delete function" do 
@@ -104,12 +90,7 @@ defmodule MqttexSetTest do
 		# test procedure:
 		#   delete an element from set s and from the list l
 		#   convert the set es to list ls and show that ls and l are equal if sorted
-		l = [{"/hello/world", {"my_client", :fire_and_forget}}, 
-		 {"/hello/world/x", {"my_client", :fire_and_forget}},
-		 {"/hello/world", {"my_client_2", :at_least_once}},
-		 {"/hello/+", {"my_client", :fire_and_forget}},
-		 {"/hello/#", {"my_client", :at_least_once}}
-		]
+		l = unique_values()
 		s0 = Mqttex.SubscriberSet.new()
 		# insert all subscriptions of es
 		s = Enum.reduce(l, s0, &(Mqttex.SubscriberSet.put(&2, &1)))
@@ -133,7 +114,7 @@ defmodule MqttexSetTest do
 	end
 
 	test "validity of topic paths" do
-		assert {true, _p} = Mqttex.SubscriberSet.convert_path("/xxx") 
+		assert ["/", "xxx"] = Mqttex.SubscriberSet.convert_path("/xxx") 
 		
 		f = fn(x) -> (x |> Mqttex.SubscriberSet.convert_path |> Mqttex.SubscriberSet.join) end
 		
@@ -151,4 +132,40 @@ defmodule MqttexSetTest do
 
 	defp eq_sub({path, {node, _qos1}}, {path, {node, _qos2}}), do: true
 	defp eq_sub(x, y), do: false 
+
+	def values() do
+		[{"/hello/world", {"my_client", :fire_and_forget}}, 
+		 {"/hello/world/x", {"my_client", :fire_and_forget}},
+		 {"/hello/world", {"my_client", :at_least_once}},
+		 {"/hello/+", {"my_client", :fire_and_forget}},
+		 {"/hello/#", {"my_client", :at_least_once}}
+		]
+	end
+	
+	def unique_values() do
+		Enum.zip(values, 1..Enum.count(values)) |> 
+			Enum.map(fn({{p, {c, q}}, n}) -> {p, {"#{c}_#{n}", q}} end)
+	end
+	
+	def mark_same_prefix() do
+		# shall contain the same as in check_membership, put_several, check_partial_equal
+		pre = values |> Enum.map(fn({p, _}) -> p end) |> 
+			Enum.uniq |> 
+			Enum.with_index |> ListDict.new
+		values |> Enum.map(fn({p, s}) -> {pre[p], {p, s}} end)
+	end
+
+ 	def will_survive_insert() do
+		{_s, l1} = mark_same_prefix |> 
+			Enum.to_list |> Enum.reverse |> 
+			Enum.reduce({HashSet.new, []}, fn({n, {p, s}}, {set, l}) ->
+			case Set.member?(set, n) do
+				true -> {set, [{false, {p, s}} | l]}
+				false -> {Set.put(set, n), [{true, {p, s}} | l]}
+			end
+		end)
+		l1
+	end
+	
+	
 end
