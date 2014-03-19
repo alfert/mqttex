@@ -218,36 +218,19 @@ defmodule Mqttex.Client do
 	end
 
 	#############################################################################################
-	#### Callbacks from QoS Behaviours
+	#### Callbacks from QoS Behaviours.
+	#### They have not specific functionality but delegate their messages to the `client`.
+	#### They have all in common that they send the message via the client process to the 
+	#### server nd return a new timeout.
 	#############################################################################################
-	@doc """
-	Sends a messages to the server side and returns the new timeout. Only called from a QoS protocol 
-	process, not part of the general API.  
-	"""
-	def send_msg(server, msg) do
+	def send_msg(server, msg),      do: do_send(server, msg)
+	def send_received(server, msg), do: do_send(server, msg)
+	def send_release(server, msg),  do: do_send(server, msg)
+	def send_complete(server, msg), do: do_send(server, msg)
+	defp do_send(server, msg) do
 		:gen_server.call(server, {:send, msg})
 	end
-	@doc """
-	Sends the received message and returns the new timeout. Only called from a QoS protocol process, 
-	not part of the general API.
-	"""
-	def send_received(server, msg) do
-		:gen_server.call(server, {:send, msg})
-	end
-	@doc """
-	Sends the release message and returns the new timeout. Only called from a QoS protocol process, 
-	not part of the general API.
-	"""
-	def send_release(server, msg) do
-		:gen_server.call(server, {:send, msg})
-	end
-	@doc """
-	Sends the complete message and returns the new timeout. Only called from a QoS protocol process, 
-	not part of the general API.
-	"""
-	def send_complete(server, msg) do
-		:gen_server.call(server, {:send, msg})
-	end
+
 	@doc """
 	Finishes a sender protocol process. Only called from a QoS protocol process, 
 	not part of the general API.
