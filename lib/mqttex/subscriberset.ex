@@ -102,12 +102,33 @@ defmodule Mqttex.SubscriberSet do
 	are used to identify all interested clients. 
 	"""
 	@spec match(subscription_set, path) :: [subscriber]
-	def match(s, topic_path) do
+	def match(s = sroot(root: root), topic_path) do
+		Lager.info "match of path #{topic_path}"
 		p = split(topic_path)
-
+		do_match(root, p, []) |> List.flatten
 	end
 	
+	defp do_match(snode(leafs: ls), [], acc), do: [get_leafs(ls) | acc]
+	defp do_match(snode(hash: hs, children: cs), [p | tail], acc) do
+		acc1 = [get_leafs(hs) | acc]
+		acc2 = case Dict.fetch(cs, p) do
+			{:ok, node} -> 
+				Lager.info("Found #{inspect p}")
+				do_match(node, tail, acc1)
+			:error      -> acc1
+		end
+		case Dict.fetch(cs, "+") do
+			{:ok, plus_node} -> 
+				Lager.info("Found + for #{inspect p}")
+				do_match(plus_node, tail, acc2)
+			:error -> acc2
+		end
+	end
 	
+	defp get_leafs(ls) do
+		Enum.map(ls, fn(sleaf(client_id: c, qos: q)) -> {c, q} end)
+	end	
+
 	@doc """
 	Inserts an element into the subscriber set. 
 
