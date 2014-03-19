@@ -2,8 +2,23 @@ defmodule Mqttex.Topic do
 	
 	@moduledoc """
 	Implements a single topic with a set of session subscriptions. 
+
+	The message storage is defined as a parameter for each topic, also 
+	the subscription storage. For the latter an efficient match support
+	for wildcard subscriptions is important. 
+
 	"""
 	use GenServer.Behaviour
+
+	### UML Specification
+	# @startuml
+	# class Topic <<Server>> {
+	# 	start_link(topic)
+	# 	publish(msg, client)
+	# 	subscribe(topic, qos, client)
+	# 	unsubscribe(topic, client)
+	# }
+	# @enduml
 
 	defrecord State, topic: "", subscriptions: []
 
@@ -42,14 +57,16 @@ defmodule Mqttex.Topic do
 		{:global, {:topic, topic}}
 	end
 
-	def init(topic) do
-		{:ok, State.new[topic: topic]}
-	end
 	
 
 	####################################################################################
 	### Callbacks
 	####################################################################################
+
+	def init(topic) do
+		{:ok, State.new[topic: topic]}
+	end
+
 
 	def handle_call({:publish, Mqttex.PublishMsg[message: content] = _msg, _client}, 
 				    _from, State[subscriptions: subs] = state) do
