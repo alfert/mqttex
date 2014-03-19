@@ -60,7 +60,7 @@ defmodule MqttexSetTest do
 
 		# check that all subscriptions are there or not	
 		Enum.each(s, fn(sub)-> 
-			IO.puts "Check for #{inspect sub}"
+			# IO.puts "Check for #{inspect sub}"
 			assert Enum.member?(es, {true, sub}), "for sub = #{inspect sub} in\n #{inspect es}"
 			end)
 		IO.puts "\nThe print function"
@@ -112,6 +112,32 @@ defmodule MqttexSetTest do
 		t.(s, l, indexes, t)
 		
 	end
+
+	defp snd({_a, b}), do: b
+	defp fst({a, _b}), do: a
+
+	# defp matchit(a, {a, _b}), do: true
+	defp matchit(a, {wild, _b}) do
+		wild_re = ("^" <> wild <> "$") |> 
+			String.replace("#", ".*") |> 
+			String.replace("/+", "/[^/]*")
+		Lager.info("match #{inspect a} with #{wild_re}")
+		Regex.compile!(wild_re) |> Regex.match? a
+	end
+
+	test "matching of prefixes" do
+		l = unique_values()
+		s = Enum.reduce(l, Mqttex.SubscriberSet.new(), &(Mqttex.SubscriberSet.put(&2, &1)))
+
+		matches = ["/hello/world", "/hello/world/x", "/hello/"]
+		Enum.each(matches, fn(matcher) -> 
+			m = Mqttex.SubscriberSet.match(s, matcher) 
+			ms = Enum.sort(m)
+			fs = Enum.filter(s, &matchit(matcher, &1)) |> Enum.map(&snd/1) |> Enum.sort
+			assert ms==fs, "matcher = #{matcher} with ms = #{inspect ms} and fs = #{inspect fs}" 
+		end)
+	end
+	
 
 	test "validity of topic paths" do
 		assert ["/", "xxx"] = Mqttex.SubscriberSet.convert_path("/xxx") 
