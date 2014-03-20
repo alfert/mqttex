@@ -130,6 +130,15 @@ defmodule Mqttex.SubscriberSet do
 	end	
 
 	@doc """
+	Adds a list of subscriptions to the set
+	"""
+	@spec put_all(subscription_set, [subscription]) :: subscription_set
+	def put_all(set, subs) do
+		Enum.reduce(subs, set, &(put(&2, &1)))
+	end
+	
+
+	@doc """
 	Inserts an element into the subscriber set. 
 
 	It is checked, that the structure of the element fits to the above defined structure.

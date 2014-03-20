@@ -30,12 +30,14 @@ defmodule MqttexSetTest do
 		 {4, {"/hello/#", {"my_client", :at_least_once}}}
 		]
 
-		 Enum.reduce(es, s0, fn({c, e}, s) ->
+		s2 = Enum.reduce(es, s0, fn({c, e}, s) ->
 		 	s1 = Mqttex.SubscriberSet.put(s, e)
 		 	c1 = Mqttex.SubscriberSet.size(s1)
 			assert c1 == c, "#{c1} == #{c} in Context of\ns1 = #{inspect s1}"
 			s1 end
 		 	)
+		# check with put_all
+		s3 = Mqttex.SubscriberSet.put_all(s0, Enum.map(es, &snd/1))
 	end
 
 	test "Check the membership" do 
