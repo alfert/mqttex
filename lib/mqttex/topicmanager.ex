@@ -1,17 +1,49 @@
 defmodule Mqttex.TopicManager do
 	
 	@moduledoc """
-		
+	The topic manager has two important tasks: 
+
+	* dispatching incoming messages to their topics
+	* managing subscriptions, in particular wildcard subscriptions
+
+	## Wildcard subscriptions
+
+	### Subscribing
+	If a client subscribes with a topic wildcard, we store a mapping of 
+	`{topic wildcard, client}` in the list of subscription. After that, 
+	we match the topic wildcard with the list of all existing topics 
+	and subscribe the client to all matched topics. 
+
+	### Starting a new topic
+	If a new topic is started, we match all (wildcard) subscriptions to
+	find all client which already subscribed to the (yet not existing) topic. 
+	All match clients are subscribed by the topic. This process is initiated
+	by the `Topic` implementation as part of booting the topic process. 
+
+	### Unsubscribing 
+	If a client unsubscribes a (wildcard) topic, we match the topic (wildcard) 
+	with all existing topics and unsubscribe the client from the matched topics. 
+
 	"""
 
 	use GenServer.Behaviour
 
 	@my_name __MODULE__
 
-	defrecord State, subscriptions: HashDict.new
+	@type topic :: binary
+	@type client :: binary
+	defrecord State, [
+		subscriptions: Mqttex.SubscriberSet.new, # map topic_wildcard to {client, qos}
+		topics: HashSet.new, #  all existing (non-wildcard) topics
+		clients: HashDict.new] do # maps client to their subscribed topics
+		record_type subscriptions: Mqttex.SubscriberSet.subscription_set,
+			topics: Set.t(Mqttex.TopicManager.topic),
+			clients: Dict.t(Mqttex.TopicManager.client, [Mqttex.TopicManager.topic])
+	end
 
 	@doc """
-	Publishes a messages, starting 
+	Publishing a messages means dispatching to topic. If the topic does not 
+	exist yet, it is started. 
 	"""
 	@spec publish(Mqttex.PublishMsg.t, binary) :: :ok
 	def publish(Mqttex.PublishMsg[] = msg, from) do
@@ -21,15 +53,27 @@ defmodule Mqttex.TopicManager do
 			Mqttex.Topic.publish(msg, from)
 		catch
 			# Topic does not exist, so start it. 
-			:exit, {:no_proc, _} -> start_topic(msg, from)
+			:exit, {:no_proc, _} -> 
+				start_topic(msg, from)
+				Mqttex.Topic.publish(msg, from)
 			any -> throw any
 		end
 	end
 	
+	@doc """
+	Starts explicitely a topic from a `PublisgMsg` and publishes
+	the message.
+	"""
 	def start_topic(Mqttex.PublishMsg[] = msg, from) do
 		:gen_server.call(@my_name, {:start_topic, msg, from})
 	end
 	
+	@doc """
+	Handles a subscription message from a client. 
+
+	Returns the list of granted qos types. 
+	"""
+	@spec subscribe(Mqttex.SubscribeMsg.t, binary) :: [Mqttex.qos_type]
 	def subscribe(Mqttex.SubscribeMsg[] = topics, from) do
 		:gen_server.call(@my_name, {:subscribe, topics, from})
 	end
@@ -46,25 +90,81 @@ defmodule Mqttex.TopicManager do
 		{:ok, State.new}
 	end
 
-	def handle_call({:start_topic, Mqttex.PublishMsg[topic: topic] = msg, from}, client, state) do
+	def handle_call({:start_topic, Mqttex.PublishMsg[topic: topic] = msg, from}, _, 
+						State[topics: topics] = state) do
 		# ignore any problems during start, in particular :already_started
 		# because we call the topic server via its name. Any problems happening
 		# from concurrent starts of the topics are resolved here: after start_topic
 		# the topic must be there. Otherwise we have a severe problem to be solved
 		# somewhere else.
-		Mqttex.SubTopic.start_topic(topic) 
-		Mqttex.Topic.publish(msg, from)
-		# return value is missing!
-		0 = 1 
+		:ok = case Mqttex.SubTopic.start_topic(topic) do
+			{:ok, _pid} -> :ok
+			{:ok, _pid, _info} -> :ok
+			{:error, {:already_started, _child}} -> :ok
+			any -> any
+		end
+		new_state = state.topics(Set.put(topics, topic))
+		# subscribe all matching clients to the new topic
+		new_clients = all_subscribers_of_topic(new_state, topic) |> 
+			Enum.reduce(new_state.clients, fn({client, qos}, cs) -> 
+				# subscrite in the topic
+				Mqttex.Topic.subscribe(topic, qos, client)
+				# update the dict of client->topics
+				Dict.update(cs, client, HashSet.new(topic), &(Set.put(&1, topic)))
+			end)
+		{:return, :ok, new_state}
 	end
-	def handle_call({:subscribe, Mqttex.SubscribeMsg[] = topics, from}, client, state) do
-		# TODO
-	end
-	
-	
-	def subscribe_to({topic, qos}, from) do
-		Mqttex.Topic.subscribe(topic, qos, from)
+	def handle_call({:subscribe, Mqttex.SubscribeMsg[topics: topics], from}, client, state) do
+		# manage the state ...
+		{new_state, new_topics} = manage_subscriptions(topics, client, state)
+
+		# subscribe to all new topics
+		Enum.each(new_topics, fn(t, q) -> Mqttex.Topic.subscribe(t, q, client) end)
+
+		# We support any type of QoS, thus the granted list contains simply the requested qos
+		granted = Enum.map(topics, fn(_topic, qos) -> qos end)
+		{:return, granted, new_state}
 	end
 	
 
+	@doc ""
+	@spec manage_subscriptions([{topic, Mqttex.qos_type}], client, State.t):: {State.t, [topic]}
+	def manage_subscriptions(topics, client, state = State[clients: clients, topics: all_topics]) do
+		# topics contains wildcards and others. Store them in to the new state
+		# topics is list of {wildcard, qos}
+		subs = Mqttex.SubscriberSet.put_all(state.subscriptions, 
+			Enum.map(topics, fn({topic, qos}) -> {topic, {client, qos}} end))
+		new_state = state.subscriptions(subs)
+		
+		# identify all (new) already existing topics to that the client 
+		# is subscribing. 
+		subscribed_topics = Dict.get(clients, client, [])
+		new_topics = all_topics |> 
+			Enum.filter(fn(t) -> not Enum.member?(subscribed_topics, t) end) |>
+			# .. only not to client subscribed topics here ==> testing!
+			# match them
+			Enum.reduce([], fn(t, acc) -> 
+				cs = all_subscribers_of_topic(subs, t)
+				case Enum.member?(cs, t) do
+					true -> [t | acc]
+					false -> acc
+				end
+			end)
+		new_state1 = new_state.clients(Dict.update(clients, client, 
+			Enum.concat(Enum.map(new_topics, &(&1)), subscribed_topics)))
+		{new_state1, new_topics}
+	end
+	
+
+
+	@doc """
+	Returns a list of process ids for all clients subscribed to this topic. Resolves
+	wildcard topic subscription. 
+	"""
+	@spec all_subscribers_of_topic(State.t | Mqttex.SubscriberSet.subscription_set, topic) :: [{client, Mqttex.qos_type}] 
+	def all_subscribers_of_topic(State[subscriptions: sub], topic), do: all_subscribers_of_topic(sub, topic)
+	def all_subscribers_of_topic(sub, topic) do
+		Mqttex.SubscriberSet.match(sub, topic)
+	end
+	
 end
