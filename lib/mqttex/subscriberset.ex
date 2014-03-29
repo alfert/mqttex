@@ -59,9 +59,10 @@ defmodule Mqttex.SubscriberSet do
 
 	"""
 
-	@doctype "A splitted path which first components `true` for an absolute path"
+	@typedoc "A splitted path which first components `true` for an absolute path"
 	@opaque subscription_set :: sroot_t
-	@type subscriber :: {  binary, Mqttex.qos_type } 
+	@type client :: binary
+	@type subscriber :: {  client, Mqttex.qos_type } 
 	@type path :: binary
 	@type splitted_path ::[binary]
 	@type subscription :: { path, subscriber }
