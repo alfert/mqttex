@@ -20,7 +20,11 @@ defmodule Mqttex.Topic do
 	# }
 	# @enduml
 
-	defrecord State, topic: "", subscriptions: []
+	defrecord State, topic: "", 
+		subscriptions: HashDict.new() do
+		record_type topic: binary,
+			subscriptions:  Dict.t(binary, Mqttex.qos_type)
+	end
 
 	def start_link(topic) when is_binary(topic) do
 		:gen_server.start_link(topic_server(topic), __MODULE__,  topic, [])
@@ -74,19 +78,13 @@ defmodule Mqttex.Topic do
 		{:reply, :ok, state}
 	end
 	def handle_call({:subscribe, client, qos}, _from, State[subscriptions: subs] = state) do
-		new_state = state.subscriptions [{client, qos} | subs]
-		{:reply, :fire_and_forget, new_state}
+		new_state = state.subscriptions(Dict.put(subs, client, qos))
+		{:reply, qos, new_state}
 	end
 	def handle_call({:unsubscribe, client}, _from, State[subscriptions: subs] = state) do
-		new_subs = Enum.filter(subs, 
-				fn {c, _} when c == client-> false 
-					_          -> true end)
+		new_subs = Dict.delete(client)
 		new_state = state.subscriptions new_subs
 		{:reply, :ok, new_state}
-	end
-	def handle_call({:unsubscribe, client, qos}, _from, State[subscriptions: subs] = state) do
-		new_state = state.subscriptions [{client, qos} | subs]
-		{:reply, :fire_and_forget, new_state}
 	end
 	
 	####################################################################################
