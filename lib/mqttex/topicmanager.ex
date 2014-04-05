@@ -126,8 +126,11 @@ defmodule Mqttex.TopicManager do
 		{:return, granted, new_state}
 	end
 	
+	@doc """
+	Adds the new subscriptions to the already existing subscriptions in state.
 
-	@doc ""
+	Returns the new state and list of newly subscribed topics
+	"""
 	@spec manage_subscriptions([{topic, Mqttex.qos_type}], client, State.t):: {State.t, [topic]}
 	def manage_subscriptions(topics, client, state = State[clients: clients, topics: all_topics]) do
 		# topics contains wildcards and others. Store them in to the new state
