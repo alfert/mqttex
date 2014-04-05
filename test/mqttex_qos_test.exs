@@ -25,7 +25,7 @@ defmodule MqttexQosTest do
 	end
 
 	test "At Most Once - one time, good case" do
-		msg = makePublishMsg("Topic AMO", "AMO Message", :at_most_once, 70)
+		msg = makePublishMsg("Topic EO", "EO Message", :exactly_once, 70)
 		setupChannels(msg)
 
 		receive do
@@ -49,7 +49,7 @@ defmodule MqttexQosTest do
 
 	test "At Most Once - one time, lossy channel" do
 		msg_id = 72
-		msg = makePublishMsg("Topic AMO", "Lossy AMO Message", :at_most_once, msg_id)
+		msg = makePublishMsg("Topic EO", "Lossy EO Message", :exactly_once, msg_id)
 		setupChannels(msg, 70)
 
 		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = _received, 2000
@@ -162,7 +162,7 @@ defmodule MqttextSimpleSenderAdapter do
 					[msg, MqttextSimpleSenderAdapter, adapter_pid])
 				:at_least_once -> spawn_link(Mqttex.QoS1Sender, :start, 
 					[msg, MqttextSimpleSenderAdapter, adapter_pid])
-				:at_most_once -> spawn_link(Mqttex.QoS2Sender, :start, 
+				:exactly_once -> spawn_link(Mqttex.QoS2Sender, :start, 
 					[msg, MqttextSimpleSenderAdapter, adapter_pid])
 			end
 		send(adapter_pid, {:register, qosProtocol})
@@ -176,7 +176,7 @@ defmodule MqttextSimpleSenderAdapter do
 					[msg, MqttextSimpleSenderAdapter, self])
 				:at_least_once -> spawn_link(Mqttex.QoS1Receiver, :start, 
 					[msg, MqttextSimpleSenderAdapter, self])
-				:at_most_once -> spawn_link(Mqttex.QoS2Receiver, :start, 
+				:exactly_once -> spawn_link(Mqttex.QoS2Receiver, :start, 
 					[msg, MqttextSimpleSenderAdapter, self])
 			end
 		qosProtocol

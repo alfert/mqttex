@@ -37,10 +37,10 @@ defmodule MqttexQueueTest do
 		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
 	end
 
-	test "Publish AMO via Queue" do
+	test "Publish EO via Queue" do
 		{q, _qIn} = setupQueue()
-		msg = "Initial Message AMO"
-		Mqttex.Test.SessionAdapter.publish(q, "AMO-Topic", msg, :at_most_once)
+		msg = "Initial Message EO"
+		Mqttex.Test.SessionAdapter.publish(q, "EO-Topic", msg, :exactly_once)
 
 		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
 	end
@@ -53,10 +53,10 @@ defmodule MqttexQueueTest do
 		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
 	end
 
-	test "Publish AMO via Lossy Queue" do
+	test "Publish EO via Lossy Queue" do
 		{q, _qIn} = setupQueue(70)
-		msg = "Lossy Message AMO"
-		Mqttex.Test.SessionAdapter.publish(q, "AMO-Topic", msg, :at_most_once)
+		msg = "Lossy Message EO"
+		Mqttex.Test.SessionAdapter.publish(q, "EO-Topic", msg, :exactly_once)
 
 		assert_receive Mqttex.PublishMsg[message: ^msg], 1_100
 	end
@@ -84,12 +84,12 @@ defmodule MqttexQueueTest do
 		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
 	end
 
-	test "Many AMO messages" do
+	test "Many EO messages" do
 		{q, _qIn} = setupQueue()
 		messages = generateMessages(100)
 		# Lager.debug "messages are: #{inspect messages}"
 
-		bulk_send(messages, q, :at_most_once, "AMO-Topic")
+		bulk_send(messages, q, :exactly_once, "EO-Topic")
 		result = slurp()
 		Lager.debug "Slurp result: #{inspect result}"
 		Enum.each(messages, fn(m) -> assert result[m] == 1 end)
@@ -106,13 +106,13 @@ defmodule MqttexQueueTest do
 		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
 	end
 
-	test "Many AMO messages via lossy queue" do
+	test "Many EO messages via lossy queue" do
 		{q, _qIn} = setupQueue(50)
 		message_count = 100
 		messages = generateMessages(message_count)
 		# Lager.debug "messages are: #{inspect messages}"
 
-		bulk_send(messages, q, :at_most_once, "AMO-Topic") # , 3_000)
+		bulk_send(messages, q, :exactly_once, "EO-Topic") # , 3_000)
 
 		result = slurp_all messages, ListDict.new, 10_000
 		Lager.debug "Slurp result: #{inspect result}"

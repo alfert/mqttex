@@ -205,14 +205,14 @@ defmodule Mqttex.ProtocolManager do
 	"""
 	def sender_protocol(:fire_and_forget), do: Mqttex.QoS0Sender
 	def sender_protocol(:at_least_once), do: Mqttex.QoS1Sender
-	def sender_protocol(:at_most_once), do: Mqttex.QoS2Sender
+	def sender_protocol(:exactly_once), do: Mqttex.QoS2Sender
 	
 	@doc """
 	Returns the Module implementing the QoS receiver protocol
 	"""
 	def receiver_protocol(:fire_and_forget), do: Mqttex.QoS0Receiver
 	def receiver_protocol(:at_least_once), do: Mqttex.QoS1Receiver
-	def receiver_protocol(:at_most_once), do: Mqttex.QoS2Receiver
+	def receiver_protocol(:exactly_once), do: Mqttex.QoS2Receiver
 
 
 end

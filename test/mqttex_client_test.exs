@@ -18,10 +18,10 @@ defmodule MqttexClientTest do
 		assert_receive (Mqttex.PublishMsg[message: ^body])
 	end
 
-	test "Connect a client and send AMO" do
+	test "Connect a client and send EO" do
 	  	{client, _server} = connect("nobody", "passwd")
 		body = "ALO Message"
-		Mqttex.Client.publish(client, "topic", body, :at_most_once)
+		Mqttex.Client.publish(client, "topic", body, :exactly_once)
 
 		assert_receive (Mqttex.PublishMsg[message: ^body])
 	end
@@ -43,10 +43,10 @@ defmodule MqttexClientTest do
 		assert_receive (Mqttex.PublishMsg[message: ^body])
 	end
 
-	test "Receive a published Message (AMO)" do
+	test "Receive a published Message (EO)" do
 		{_client, server} = connect("nobody", "passwd")
 		body = "ALO Message"
-		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :at_most_once)
+		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :exactly_once)
 
 		assert_receive (Mqttex.PublishMsg[message: ^body])
 	end
