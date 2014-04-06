@@ -10,7 +10,7 @@ defmodule Mqttex.Server do
 	This approach eases implementation and testing. 
 	"""
 
-	use GenFSM.Behaviour
+	use Mqttex.GenFSM.Behaviour
 	@my_name __MODULE__
 	@default_timeout 500 # 100m milliseconds timeout 
 
