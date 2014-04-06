@@ -27,6 +27,7 @@ defmodule Mqttex.TopicManager do
 	"""
 
 	use GenServer.Behaviour
+	require Lager
 
 	@my_name __MODULE__
 
@@ -103,15 +104,8 @@ defmodule Mqttex.TopicManager do
 			{:error, {:already_started, _child}} -> :ok
 			any -> any
 		end
-		new_state = state.topics(Set.put(topics, topic))
-		# subscribe all matching clients to the new topic
-		new_clients = all_subscribers_of_topic(new_state, topic) |> 
-			Enum.reduce(new_state.clients, fn({client, qos}, cs) -> 
-				# subscrite in the topic
-				Mqttex.Topic.subscribe(topic, qos, client)
-				# update the dict of client->topics
-				Dict.update(cs, client, HashSet.new(topic), &(Set.put(&1, topic)))
-			end)
+		{new_state, subscribed_clients} = manage_topic_start(topic, state)
+		Enum.each(subscribed_clients, fn({c, q}) -> Mqttex.Topic.subscribe(topic, q, c)end)
 		{:return, :ok, new_state}
 	end
 	def handle_call({:subscribe, Mqttex.SubscribeMsg[topics: topics], from}, client, state) do
@@ -141,24 +135,39 @@ defmodule Mqttex.TopicManager do
 		
 		# identify all (new) already existing topics to that the client 
 		# is subscribing. 
-		subscribed_topics = Dict.get(clients, client, [])
+		subscribed_topics = Dict.get(clients, client, HashSet.new)
 		new_topics = all_topics |> 
 			Enum.filter(fn(t) -> not Enum.member?(subscribed_topics, t) end) |>
 			# .. only not to client subscribed topics here ==> testing!
 			# match them
-			Enum.reduce([], fn(t, acc) -> 
+			Enum.reduce(HashSet.new, fn(t, acc) -> 
 				cs = all_subscribers_of_topic(subs, t)
 				case Enum.member?(cs, t) do
-					true -> [t | acc]
+					true -> Set.put(acc, t)
 					false -> acc
 				end
 			end)
-		new_state1 = new_state.clients(Dict.update(clients, client, 
-			Enum.concat(Enum.map(new_topics, &(&1)), subscribed_topics)))
+		new_state1 = new_state.clients(Dict.update(clients, client, new_topics,
+			fn(v) -> Set.put_all(v, Enum.map(new_topics, &(&1))) end))
 		{new_state1, new_topics}
 	end
 	
 
+	def manage_topic_start(topic, State[topics: topics] = state) do
+		# add the new topic to all existings topics
+		new_state = state.topics(Set.put(topics, topic))
+		# find all subscribers
+		subscribed_clients = all_subscribers_of_topic(new_state, topic)
+		Lager.debug("New State = #{inspect new_state}")
+		# update the subscriptions of all subscribers of the new topic
+		new_clients = subscribed_clients |> 
+			Enum.reduce(new_state.clients, fn({client, qos}, cs) -> 
+				# update the dict of client->topics
+				Dict.update(cs, client, HashSet.new([topic]), &(Set.put(&1, topic)))
+			end)
+		{new_state.clients(new_clients), subscribed_clients}
+	end
+	
 
 	@doc """
 	Returns a list of process ids for all clients subscribed to this topic. Resolves
