@@ -91,8 +91,8 @@ defmodule Mqttex.TopicManager do
 		{:ok, State.new}
 	end
 
-	def handle_call({:start_topic, Mqttex.PublishMsg[topic: topic] = msg, from}, _, 
-						State[topics: topics] = state) do
+	def handle_call({:start_topic, Mqttex.PublishMsg[topic: topic] = _msg, _from}, _, 
+						State[] = state) do
 		# ignore any problems during start, in particular :already_started
 		# because we call the topic server via its name. Any problems happening
 		# from concurrent starts of the topics are resolved here: after start_topic
@@ -108,7 +108,7 @@ defmodule Mqttex.TopicManager do
 		Enum.each(subscribed_clients, fn({c, q}) -> Mqttex.Topic.subscribe(topic, q, c)end)
 		{:return, :ok, new_state}
 	end
-	def handle_call({:subscribe, Mqttex.SubscribeMsg[topics: topics], from}, client, state) do
+	def handle_call({:subscribe, Mqttex.SubscribeMsg[topics: topics], _from}, client, state) do
 		# manage the state ...
 		{new_state, new_topics} = manage_subscriptions(topics, client, state)
 
@@ -161,7 +161,7 @@ defmodule Mqttex.TopicManager do
 		Lager.debug("New State = #{inspect new_state}")
 		# update the subscriptions of all subscribers of the new topic
 		new_clients = subscribed_clients |> 
-			Enum.reduce(new_state.clients, fn({client, qos}, cs) -> 
+			Enum.reduce(new_state.clients, fn({client, _qos}, cs) -> 
 				# update the dict of client->topics
 				Dict.update(cs, client, HashSet.new([topic]), &(Set.put(&1, topic)))
 			end)
