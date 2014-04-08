@@ -84,53 +84,13 @@ defmodule Mqttex.Server do
 	Sends a messages to the client side and returns the new timeout. Only called from a QoS protocol 
 	process, not part of the general API.  
 	"""
-	def send_msg(server, msg) do
-		:gen_fsm.sync_send_event(server, {:send, msg})
-	end
-	@doc """
-	Sends the received message and returns the new timeout. Only called from a QoS protocol process, 
-	not part of the general API.
-	"""
-	def send_received(server, msg) do
-		:gen_fsm.sync_send_event(server, {:send, msg})
-	end
-	@doc """
-	Sends the release message and returns the new timeout. Only called from a QoS protocol process, 
-	not part of the general API.
-	"""
-	def send_release(server, msg) do
-		:gen_fsm.sync_send_event(server, {:send, msg})
-	end
-	@doc """
-	Sends the complete message and returns the new timeout. Only called from a QoS protocol process, 
-	not part of the general API.
-	"""
-	def send_complete(server, msg) do
-		:gen_fsm.sync_send_event(server, {:send, msg})
-	end
-	@doc """
-	Finishes a sender protocol process. Only called from a QoS protocol process, 
-	not part of the general API.
-	"""
-	def finish_sender(server, msg_id) do
-		:gen_fsm.send_event(server, {:drop_sender, msg_id})
-	end
-	@doc """
-	Finishes a receiver protocol process. Only called from a QoS protocol process, 
-	not part of the general API.
-	"""
-	def finish_receiver(server, msg_id) do
-		:gen_fsm.send_event(server, {:drop_receiver, msg_id})
-	end
-	
-	@doc """
-	Finally receives the regular message for delivery to a topic. Only called from a QoS 
-	protocol process, not part of the general API.
-	"""
-	def on_message(server, msg) do
-		:gen_fsm.send_event(server, {:on, msg})		
-	end
-
+	def send_msg(server, msg), do: :gen_fsm.sync_send_event(server, {:send, msg})
+	def send_received(server, msg), do: :gen_fsm.sync_send_event(server, {:send, msg})
+	def send_release(server, msg), do: :gen_fsm.sync_send_event(server, {:send, msg})
+	def send_complete(server, msg), do: :gen_fsm.sync_send_event(server, {:send, msg})
+	def finish_sender(server, msg_id), do: :gen_fsm.send_event(server, {:drop_sender, msg_id})
+	def finish_receiver(server, msg_id), do: :gen_fsm.send_event(server, {:drop_receiver, msg_id})
+	def on_message(server, msg), do: :gen_fsm.send_event(server, {:on, msg})		
 
 	#############################################################################################
 	#### Internal functions
