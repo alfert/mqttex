@@ -30,4 +30,12 @@ defmodule Mqttex.SupServer do
         :supervisor.start_child @supervisor, [connection, client_proc]
     end
   
+    @doc """
+    Internal function for stopping the server during testing or similar situations.
+    """
+    def stop_server(server) do
+        :supervisor.terminate_child(@supervisor, server)
+    end
+    
+
 end
