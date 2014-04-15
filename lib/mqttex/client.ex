@@ -32,10 +32,12 @@ defmodule Mqttex.Client do
 	Creates a new connection and uses the environment configuration. It is discouraged
 	to instantiate the `Connection` directly
 	"""
+	@spec new_connection(binary, atom) :: Connection.t
 	def new_connection(server, networkmodule) do
 		{:ok, port } = :application.get_env(:mqttex, :port)
 		new_connection(server, networkmodule, port)
 	end
+	@spec new_connection(binary, atom, number) :: Connection.t
 	def new_connection(server, networkmodule, port) do
 		Connection.new([server: server, port: port, module: networkmodule])
 	end
