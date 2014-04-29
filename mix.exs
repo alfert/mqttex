@@ -6,7 +6,7 @@ defmodule Mqttex.Mixfile do
     elixirc_defaults = [:debug_info, :ignore_module_conflict, :docs]
     [ app: :mqttex,
       version: "0.0.1",
-      elixir: "~> 0.12.0",
+      elixir: "~> 0.13",
       elixirc_options: elixirc_defaults ++ options(Mix.env),
       deps: deps,
       dialyzer: [paths: ["_build/shared/lib/mqttex/ebin"] ], 

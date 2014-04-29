@@ -163,7 +163,7 @@ defmodule Mqttex.TopicManager do
 		new_clients = subscribed_clients |> 
 			Enum.reduce(new_state.clients, fn({client, _qos}, cs) -> 
 				# update the dict of client->topics
-				Dict.update(cs, client, HashSet.new([topic]), &(Set.put(&1, topic)))
+				Dict.update(cs, client, Enum.into([topic], HashSet.new), &(Set.put(&1, topic)))
 			end)
 		{new_state.clients(new_clients), subscribed_clients}
 	end

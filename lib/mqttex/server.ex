@@ -69,13 +69,12 @@ defmodule Mqttex.Server do
 	@spec stop(pid) :: :ok
 	def stop(server) do
 		Lager.info("Stop the server #{inspect server}")
-		#:gen_server.cast(server, :stop)
 		Mqttex.SupServer.stop_server(server)
 	end
 
 	@doc """
 	Publishes a message to be send to the client. This is called 
-	from the `Topic`. ^
+	from the `Topic`.
 	"""	
 	def publish(server, topic, body, qos) do
 		header = Mqttex.FixedHeader.new([qos: qos])

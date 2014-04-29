@@ -114,7 +114,7 @@ defmodule MqttexQueueTest do
 
 		bulk_send(messages, q, :exactly_once, "EO-Topic") # , 3_000)
 
-		result = slurp_all messages, ListDict.new, 10_000
+		result = slurp_all messages, Map.new, 10_000
 		Lager.debug "Slurp result: #{inspect result}"
 		
 		assert message_count == Dict.size(result)
@@ -137,7 +137,7 @@ defmodule MqttexQueueTest do
 	Slurps all messages once in order and after that slurps any remaining messages
 	the process mailbox until `:done` is found
 	"""
-	def slurp_all([m | tail], found \\ ListDict.new, timeout \\ 5_000)
+	def slurp_all([m | tail], found \\ Map.new, timeout \\ 5_000)
 		when is_binary(m) do
 		receive do
 			Mqttex.PublishMsg[message: ^m] -> # when m == msg -> 
@@ -156,7 +156,7 @@ defmodule MqttexQueueTest do
 	@doc """
 	Slurps all messages and counts how often each message occurs. 
 	"""
-	def slurp(msgs \\ ListDict.new) do
+	def slurp(msgs \\ Map.new) do
 		receive do
 			Mqttex.PublishMsg[message: m] ->	
 				slurp(Dict.update(msgs, m, 1, &(&1 + 1)))
@@ -185,7 +185,7 @@ defmodule MqttexQueueTest do
 		else
 			Lager.debug "Setting up lossy channel (loss = #{loss})"
 		end
-		losslist = ListDict.new [loss: loss]
+		losslist = Map.new [loss: loss]
 		# Create Outbound and Inbound Communication Channels
 		chSender = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 		assert is_pid(chSender)

@@ -73,7 +73,7 @@ defmodule MqttexClientTest do
 		else
 			Lager.debug "Setting up lossy channel (loss = #{loss})"
 		end
-		losslist = ListDict.new [loss: loss]
+		losslist = Map.new [loss: loss]
 		# Create Outbound and Inbound Communication Channels
 		chSender = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 		assert is_pid(chSender)

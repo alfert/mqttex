@@ -6,6 +6,16 @@ This a MQTT server and client written in Elixir.
 
 ## Design
 
+For the design, here is a simple example in Elixir: 
+
+``` elixir
+def f(p) do
+	IO.puts "param: #{p}"
+end
+
+``` 
+
+
 ### Connections
 
 One process per logical client connection (i.e. operating on Elixir data structures). On 
@@ -38,6 +48,48 @@ The several states are shown here the statechart:
 ![FSM of the Server Side](../mqtt-server-fsm.dot.png)
 
 ### Client Side
+
+## Handling Topics and QoS (server side)
+
+The outbound traffic for a destination must be handled via a queue. If the
+destination is not connected, but we have a durable session (and thus durable
+subscriptions), all messages send to the destination are held in the server
+and delivered after a reconnect. 
+
+In the destination queue the messages are represented as quadruples of
+`{topic, msg_id, qos, content}. 
+
+![Server Side Structure](../server-structure.dot.png)
+
+
+### Fire and Forget
+
+At fire and forget, the server session handles the incoming message as cast
+and gives it  to the topic to handle it further on. The topic gives the
+message to  the subscribed sessions,  which in return sends them directly to
+the client-process (usually handling the tcp connection).
+
+### At Least Once
+
+The server session has to acknowlegde the incoming publish message. This is
+done directly in the server session. The message (and its duplicates) are send
+to the topic, which distributes it to the subscribed sessions.  If the
+subscribed sessions also requires `at least once`, the transfer to the
+destination can only finish after a successful acknowledgement from the
+client. Without an acknowldgement, the message is published again (as a
+duplicate) to the destination.
+
+The destination session in the broker has to manage the state of transfer,
+i.e. it can only drop the message if the destination client has sucessfully
+send an PubAck message. Essentially this is a queue of messages, consisting
+of triples `{topic, msg_id, message}`. The timeout after which a retry is done
+can be varying (similar to exponential timeout). It might be easier to
+understand the queue triple as a separate process for which timer events are
+handled.
+
+### At most once
+
+
 
 ## ToDos
 

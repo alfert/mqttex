@@ -54,7 +54,7 @@ defmodule MqttexTopicTest do
 		assert Enum.empty? s1.topics
 		assert Enum.count(unique_values) ==  Enum.count s1.clients
 		Enum.each(s1.clients, fn({k, v}) -> 
-			assert Set.empty(v), "Set.empty for key #{k}" end)
+			assert Enum.empty?(v), "Enum.empty? for key #{k}" end)
 		assert Enum.empty? ts
 
 		# start topics and check the subscribed clients
