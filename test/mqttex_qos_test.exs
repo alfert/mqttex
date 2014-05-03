@@ -15,7 +15,7 @@ defmodule MqttexQosTest do
 		setupChannels(msg)
 
 		receive do
-			Mqttex.PubAckMsg[] = ack -> assert ack.msg_id == msg.msg_id
+			%Mqttex.PubAckMsg{} = ack -> assert ack.msg_id == msg.msg_id
 			Mqttex.PublishMsg[] = received -> 
 				Lager.debug "Yeah, we received this message: #{inspect received}"
 				assert received.msg_id == msg.msg_id

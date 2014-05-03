@@ -118,7 +118,8 @@ defmodule Mqttex.ProtocolManager do
 
 	Returns `:ok` if the OoS Protocol is found, otherwise `:error`.
 	"""
-	def dispatch_sender(PMState[] = state, Mqttex.PubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	#def dispatch_sender(PMState[] = state, Mqttex.PubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch_sender(PMState[] = state, %Mqttex.PubAckMsg{msg_id: id} = msg),   do: dispatch(state, id, msg)
 	def dispatch_sender(PMState[] = state, Mqttex.PubRecMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
 	def dispatch_sender(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),  do: dispatch(state, id, msg)
 	def dispatch_sender(PMState[] = state, Mqttex.SubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)

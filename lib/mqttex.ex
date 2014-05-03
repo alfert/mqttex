@@ -74,7 +74,9 @@ defmodule Mqttex do
 	defrecord PublishMsg, header: FixedHeader.new, topic: "", msg_id: 0, message: ""
 
 	# The puback message
-	defrecord PubAckMsg, msg_id: 0
+	defmodule PubAckMsg do
+		defstruct msg_id: 0 
+	end
 
 	# The pubrec message
 	defrecord PubRecMsg, msg_id: 0
