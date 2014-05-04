@@ -38,6 +38,8 @@ defmodule MqttexSetTest do
 		 	)
 		# check with put_all
 		s3 = Mqttex.SubscriberSet.put_all(s0, Enum.map(es, &snd/1))
+
+		assert s2 == s3
 	end
 
 	test "Check the membership" do 
@@ -72,7 +74,6 @@ defmodule MqttexSetTest do
 	end
 
 	test "check partial equal function" do
-		s0 = Mqttex.SubscriberSet.new()
 		# es = [{unique_id, subscriber}] where unique_id is equal for "equal" subscriptions
 		es = mark_same_prefix
 
@@ -93,6 +94,10 @@ defmodule MqttexSetTest do
 		#   delete an element from set s and from the list l
 		#   convert the set es to list ls and show that ls and l are equal if sorted
 		l = unique_values()
+		Lager.debug "list for deletion #{inspect l}"
+
+		assert 5 == length l
+
 		s0 = Mqttex.SubscriberSet.new()
 		# insert all subscriptions of es
 		s = Enum.reduce(l, s0, &(Mqttex.SubscriberSet.put(&2, &1)))
@@ -100,9 +105,9 @@ defmodule MqttexSetTest do
 		:random.seed(:erlang.now())
 		indexes = Enum.to_list(5..1) |> Enum.map(&(:random.uniform(&1)-1))
 		# indexes = [0, 2, 1, 1, 0]
-		Lager.info "Indexes for deletes: #{inspect indexes}"
+		Lager.debug "Indexes for deletes: #{inspect indexes}"
 		t = fn(_s, [], _i, _n)  -> true
-			  (s, l = [h | t], [i | is], next) -> 
+			  (s, l, [i | is], next) -> 
 			{:ok, e} = Enum.fetch(l, i)
 			Lager.debug "Delete #{inspect e}"
 			l1 = List.delete(l, e)
@@ -123,7 +128,7 @@ defmodule MqttexSetTest do
 		wild_re = ("^" <> wild <> "$") |> 
 			String.replace("#", ".*") |> 
 			String.replace("/+", "/[^/]*")
-		Lager.info("match #{inspect a} with #{wild_re}")
+		Lager.debug("match #{inspect a} with #{wild_re}")
 		Regex.compile!(wild_re) |> Regex.match? a
 	end
 
@@ -159,10 +164,10 @@ defmodule MqttexSetTest do
 	defp clean(p), do: Enum.filter(p, fn(x) -> x != "/" end)
 
 	defp eq_sub({path, {node, _qos1}}, {path, {node, _qos2}}), do: true
-	defp eq_sub(x, y), do: false 
+	defp eq_sub(_x, _y), do: false 
 
 	def values() do
-		[{"/hello/world", {"my_client", :fire_and_forget}}, 
+		[{"/hello/world", {"my_client", :fire_and_forget}},
 		 {"/hello/world/x", {"my_client", :fire_and_forget}},
 		 {"/hello/world", {"my_client", :at_least_once}},
 		 {"/hello/+", {"my_client", :fire_and_forget}},
@@ -171,16 +176,19 @@ defmodule MqttexSetTest do
 	end
 	
 	def unique_values() do
-		Enum.zip(values, 1..Enum.count(values)) |> 
+		uv = Enum.zip(values, 1..Enum.count(values)) |> 
 			Enum.map(fn({{p, {c, q}}, n}) -> {p, {"#{c}_#{n}", q}} end)
+		Lager.debug ("uv = #{inspect uv}")
+		assert Enum.count(values) == Enum.count(uv)
+		uv
 	end
 	
 	def mark_same_prefix() do
 		# shall contain the same as in check_membership, put_several, check_partial_equal
-		pre = Enum.into(%{}, 
-			values |> Enum.map(fn({p, _}) -> p end) |> 
+		pre = values |> Enum.map(fn({p, _}) -> p end) |> 
 			Enum.uniq |> 
-			Enum.with_index)
+			Enum.with_index() |> Enum.into %{}
+		Lager.debug("#{inspect pre}")
 		values |> Enum.map(fn({p, s}) -> {pre[p], {p, s}} end)
 	end
 
