@@ -75,7 +75,7 @@ defmodule MqttexQosTest do
 		else
 			Lager.debug "Setting up lossy channel (loss = #{loss})"
 		end
-		losslist = Map.new [loss: loss]
+		losslist = %{loss: loss}
 		chIn  = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 		chOut = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 

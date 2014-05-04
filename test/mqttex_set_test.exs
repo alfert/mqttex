@@ -177,9 +177,10 @@ defmodule MqttexSetTest do
 	
 	def mark_same_prefix() do
 		# shall contain the same as in check_membership, put_several, check_partial_equal
-		pre = values |> Enum.map(fn({p, _}) -> p end) |> 
+		pre = Enum.into(%{}, 
+			values |> Enum.map(fn({p, _}) -> p end) |> 
 			Enum.uniq |> 
-			Enum.with_index |> Map.new
+			Enum.with_index)
 		values |> Enum.map(fn({p, s}) -> {pre[p], {p, s}} end)
 	end
 

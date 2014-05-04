@@ -12,7 +12,7 @@ defmodule Mqttex.ProtocolManager do
 	use Bitwise
 	# use Dict.Behaviour
 
-	defrecord PMState, counter: 0, transfers: []
+	defrecord PMState, counter: 0, transfers: HashDict.new()
 
 	#################################################################################
 	## Specific Functions
