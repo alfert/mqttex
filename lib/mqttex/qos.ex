@@ -193,7 +193,7 @@ end
 defmodule Mqttex.QoS2Sender do
 	@moduledoc """
 	Implements the protocol of a sender process that sends messages with QoS2, ie. 
-	as `At Most Once` quality of service. 
+	as `Exactly Once` quality of service. 
 	"""
 
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
@@ -242,7 +242,7 @@ end
 defmodule Mqttex.QoS2Receiver do
 	@moduledoc """
 	Implements the protocol for a QoS2 receiver, ie. the receiver part of the 
-	`At Most Once` quality of service. 
+	`Exactly Once` quality of service. 
 	"""
 
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
