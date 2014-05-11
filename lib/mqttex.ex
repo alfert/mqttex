@@ -34,10 +34,12 @@ defmodule Mqttex do
 
 
   	@type qos_type :: :fire_and_forget | :at_least_once | :exactly_once
-	@type message_type :: :connect | :conn_ack | :publish | :pub_ack |
-						:pub_rec | :pub_rel | :pub_comp | :subscribe |
-						:sub_ack | :unsubscribe | :unsub_ack | 
-						:ping_req | :ping_resp | :disconnect | :reserved
+  	@type simple_message_type :: :conn_ack | :pub_ack | 
+  						:pub_rec | :pub_comp | :unsub_ack | 
+  						:ping_req | :ping_resp | :disconnect | 
+						 :reserved
+	@type message_type :: simple_message_type | :connect | :publish |
+						:pub_rel |  :subscribe | :sub_ack | :unsubscribe  
 
 	@type conn_ack_type :: :ok | :unaccaptable_protocol_version | 
 						:identifier_rejected | :server_unavailable | :bad_user |
@@ -73,11 +75,21 @@ defmodule Mqttex do
 	# The publish message
 	defrecord PublishMsg, header: FixedHeader.new, topic: "", msg_id: 0, message: ""
 
-	# The puback message
-	defmodule PubAckMsg do
-		defstruct msg_id: 0 
-	end
 
+
+	# TODO:
+	# Check, if it is a good idea to summarize several messages of the same kind
+	# to one struct, e.g. all those with have only the msg_id as value (=> all kinds 
+	# of ack-messages) or even only the status flag (ping, conn, disconn).
+	# This approach will reduce the number of struct modules and in the best case also 
+	# should reduce the number of lines / complexity in the functional modules.
+
+	# The puback message
+	# defmodule PubAckMsg do
+	#	defstruct msg_id: 0 
+	# end
+
+	
 	# The pubrec message
 	defrecord PubRecMsg, msg_id: 0
 
@@ -97,7 +109,7 @@ defmodule Mqttex do
 	defrecord UnSubscribeMsg, header: FixedHeader.new, msg_id: 0, topics: []
 
 	# The UnSubAck message
-	defrecord UnSubAckMsg, msg_id: 0
+	#defrecord UnSubAckMsg, msg_id: 0
 
 	# The ping request message (status is only a field to have field, has no semantics)
 	defrecord PingReqMsg, status: :ok

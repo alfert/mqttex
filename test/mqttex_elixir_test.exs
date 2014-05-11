@@ -14,10 +14,10 @@ defmodule MqttexElixirTest do
 		m = make_PubAck k
 		
 		assert k == m.msg_id
-		assert (%Mqttex.PubAckMsg{msg_id: ^k} = m)
-		refute (%Mqttex.PubAckMsg{msg_id: ^l} = m)
-		assert (%Mqttex.PubAckMsg{} = m) 
-		refute (%Mqttex.PubAckMsg{} === m) 
+		assert (%Mqttex.Msg.Simple{msg_type: :pub_ack, msg_id: ^k} = m)
+		refute (%Mqttex.Msg.Simple{msg_type: :pub_ack, msg_id: ^l} = m)
+		assert (%Mqttex.Msg.Simple{msg_type: :pub_ack} = m) 
+		refute (%Mqttex.Msg.Simple{msg_type: :pub_ack} === m) 
 	end
 
 	test "get values from structs" do
@@ -36,18 +36,18 @@ defmodule MqttexElixirTest do
 	end
 
 	def make_PubAck(msg_id \\ 0) do
-		%Mqttex.PubAckMsg{msg_id: msg_id}
+		%Mqttex.Msg.Simple{msg_type: :pub_ack, msg_id: msg_id}
 	end
 	
-	def get_msg_id1(%Mqttex.PubAckMsg{} = m) do
+	def get_msg_id1(%Mqttex.Msg.Simple{msg_type: :pub_ack, } = m) do
 		m.msg_id
 	end
-	def get_msg_id2(%Mqttex.PubAckMsg{msg_id: id}) do
+	def get_msg_id2(%Mqttex.Msg.Simple{msg_type: :pub_ack, msg_id: id}) do
 		id
 	end
 
 	def get_msg_id3(%MqttexElixirTest{} = m), do: m.msg_id
-	def get_msg_id3(%Mqttex.PubAckMsg{} = m), do: m.msg_id
+	def get_msg_id3(%Mqttex.Msg.Simple{msg_type: :pub_ack, } = m), do: m.msg_id
 	def get_msg_id3(any), do: false
 	
 

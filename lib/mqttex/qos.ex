@@ -158,9 +158,10 @@ defmodule Mqttex.QoS1Sender do
 		m = msg.update(header: h)
 		timeout = mod.send_msg(sender, m)
 		receive do
-			%Mqttex.PubAckMsg{msg_id: ^id}   -> :ok
+			%Mqttex.Msg.Simple{msg_type: :pub_ack, msg_id: ^id}   -> :ok
 			Mqttex.SubAckMsg[msg_id: ^id]   -> :ok
-			Mqttex.UnSubAckMsg[msg_id: ^id] -> :ok
+			%Mqttex.Msg.Simple{msg_type: :unsub_ack, msg_id: ^id}   -> :ok
+			# Mqttex.UnSubAckMsg[msg_id: ^id] -> :ok
 			after  timeout                  -> send_msg(m, id, mod, sender, :second)
 		end
 	end
@@ -183,7 +184,8 @@ defmodule Mqttex.QoS1Receiver do
 	end
 
 	def send_ack(msg_id, mod, receiver) do
-		ack = %Mqttex.PubAckMsg{msg_id: msg_id}
+		#ack = %Mqttex.Msg.Simple{msg_type: :pub_ack, msg_id: msg_id}
+		ack = Mqttex.Msg.pub_ack(msg_id)
 		mod.send_msg(receiver, ack)
 		:ok		
 	end
