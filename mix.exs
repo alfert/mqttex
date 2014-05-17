@@ -10,7 +10,7 @@ defmodule Mqttex.Mixfile do
       elixirc_options: elixirc_defaults ++ options(Mix.env),
       deps: deps,
       dialyzer: [paths: ["_build/shared/lib/mqttex/ebin"] ], 
-      # test_coverage: [tool: Coverex.Task],
+      test_coverage: [tool: Coverex.Task],
       docs: [readme: true]
     ]
   end
@@ -47,7 +47,8 @@ defmodule Mqttex.Mixfile do
       # Generate documentation with ex_doc
       { :ex_doc, github: "elixir-lang/ex_doc" },
       # Cover tests
-      { :coverex, [path: "../coverex"] }
+      #{ :coverex, [path: "../coverex"] }
+      {:coverex, "~> 0.0.1"}
     ]
   end
 
