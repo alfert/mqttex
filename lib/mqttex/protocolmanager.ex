@@ -120,7 +120,7 @@ defmodule Mqttex.ProtocolManager do
 	"""
 	#def dispatch_sender(PMState[] = state, Mqttex.PubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
 	# def dispatch_sender(PMState[] = state, %Mqttex.PubAckMsg{msg_id: id} = msg),   do: dispatch(state, id, msg)
-	def dispatch_sender(PMState[] = state, Mqttex.PubRecMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	# def dispatch_sender(PMState[] = state, Mqttex.PubRecMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
 	def dispatch_sender(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),  do: dispatch(state, id, msg)
 	def dispatch_sender(PMState[] = state, Mqttex.SubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
 	def dispatch_sender(PMState[] = state, %Mqttex.Msg.Simple{msg_id: id} = msg), do: dispatch(state, id, msg)

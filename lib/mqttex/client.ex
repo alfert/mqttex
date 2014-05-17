@@ -145,7 +145,7 @@ defmodule Mqttex.Client do
 		{:noreply, state.update(receivers: new_receiver), state.timeout}
 	end
 	def handle_cast({:receive, %Mqttex.Msg.Simple{} = msg}, state), do: dispatch_sender(msg, state)
-	def handle_cast({:receive, Mqttex.PubRecMsg[] = msg}, state), do: dispatch_sender(msg, state)
+	# def handle_cast({:receive, Mqttex.PubRecMsg[] = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, Mqttex.PubCompMsg[] = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, Mqttex.PubRelMsg[] = msg}, state), do: dispatch_receiver(msg, state)
 	def handle_cast({:receive, Mqttex.PingRespMsg[] = msg}, state) do
@@ -209,7 +209,7 @@ defmodule Mqttex.Client do
 
 	def receive(server, Mqttex.PublishMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Simple{}= msg), do: do_receive(server, msg)
-	def receive(server, Mqttex.PubRecMsg[]= msg), do: do_receive(server, msg)
+	# def receive(server, Mqttex.PubRecMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PubRelMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PubCompMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PingRespMsg[]= msg), do: do_receive(server, msg)

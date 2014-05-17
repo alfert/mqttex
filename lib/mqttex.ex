@@ -83,15 +83,9 @@ defmodule Mqttex do
 	# of ack-messages) or even only the status flag (ping, conn, disconn).
 	# This approach will reduce the number of struct modules and in the best case also 
 	# should reduce the number of lines / complexity in the functional modules.
-
-	# The puback message
-	# defmodule PubAckMsg do
-	#	defstruct msg_id: 0 
-	# end
-
 	
 	# The pubrec message
-	defrecord PubRecMsg, msg_id: 0
+	# defrecord PubRecMsg, msg_id: 0
 
 	# The pubrel message
 	defrecord PubRelMsg, header: FixedHeader.new, msg_id: 0

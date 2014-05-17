@@ -31,7 +31,7 @@ defmodule Mqttex.SenderBehaviour do
 	Sends a received message and returns the current timeout for an answer in milliseconds. 
 	The first parameter is either a `pid` or an named process references for a genserver.
 	"""
-	defcallback send_release(term, Mqttex.PubRecMsg.t) :: integer
+	defcallback send_release(term, Mqttex.Msg.Simple.t) :: integer
 
 	@doc """
 	Finishes the sender protocol. Usually this requires house-keeping activities for the 
@@ -218,7 +218,7 @@ defmodule Mqttex.QoS2Sender do
 		m = msg.header(new_h)
 		timeout = mod.send_msg(sender, m)
 		receive do
-			Mqttex.PubRecMsg[msg_id: ^msg_id] -> send_release(msg_id, mod, sender, :first)
+			%Mqttex.Msg.Simple{msg_type: :pub_rec, msg_id: ^msg_id} -> send_release(msg_id, mod, sender, :first)
 			any						 		  -> :error_logger.error_msg("Strange message: #{inspect any}")
 			after  timeout                    -> send_msg(msg, mod, sender, :second)
 		end
@@ -255,7 +255,7 @@ defmodule Mqttex.QoS2Receiver do
 	end
 
 	def send_received(msg, msg_id, mod, receiver, _duplicate) do
-		received = Mqttex.PubRecMsg[msg_id: msg_id]
+		received = Mqttex.Msg.pub_rec(msg_id)
 		timeout = mod.send_received(receiver, received)
 		receive do
 			Mqttex.PubRelMsg[msg_id: ^msg_id]  -> send_complete(msg, msg_id, mod, receiver, :first)
