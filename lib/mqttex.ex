@@ -91,7 +91,7 @@ defmodule Mqttex do
 	defrecord PubRelMsg, header: FixedHeader.new, msg_id: 0
 
 	# The pubcomp message
-	defrecord PubCompMsg, msg_id: 0
+	# defrecord PubCompMsg, msg_id: 0
 
 	# The Subscribe message
 	defrecord SubscribeMsg, header: FixedHeader.new, msg_id: 0, topics: [{"", :fire_and_forget}]
