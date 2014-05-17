@@ -29,7 +29,7 @@ defmodule MqttexQosTest do
 		setupChannels(msg)
 
 		receive do
-			Mqttex.PubCompMsg[] = ack -> assert ack.msg_id == msg.msg_id
+			%Mqttex.Msg.Simple{msg_type: :pub_comp} = ack -> assert ack.msg_id == msg.msg_id
 			Mqttex.PublishMsg[] = received -> 
 				Lager.debug "Yeah, we received this message: #{inspect received}"
 				assert received.msg_id == msg.msg_id
@@ -47,12 +47,12 @@ defmodule MqttexQosTest do
 		# Lager.debug "Yeah, we received this message: #{inspect received}"
 	end
 
-	test "At Most Once - one time, lossy channel" do
+	test "Exactly Once - one time, lossy channel" do
 		msg_id = 72
 		msg = makePublishMsg("Topic EO", "Lossy EO Message", :exactly_once, msg_id)
-		setupChannels(msg, 70)
+		setupChannels(msg, 50)
 
-		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = _received, 2000
+		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = _received, 2_000
 		# Lager.debug "Yeah, we received this message: #{inspect received}"
 	end
 
