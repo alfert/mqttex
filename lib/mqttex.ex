@@ -106,11 +106,11 @@ defmodule Mqttex do
 	#defrecord UnSubAckMsg, msg_id: 0
 
 	# The ping request message (status is only a field to have field, has no semantics)
-	defrecord PingReqMsg, status: :ok
+	# defrecord PingReqMsg, status: :ok
 
 	# The ping response message (status is only a field to have field, has no semantics)
-	defrecord PingRespMsg, status: :ok
+	# defrecord PingRespMsg, status: :ok
 
 	# The disconnect message (status is only a field to have field, has no semantics)
-	defrecord DisconnectMsg, status: :ok
+	# defrecord DisconnectMsg, status: :ok
 end

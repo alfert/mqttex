@@ -56,8 +56,9 @@ defmodule Mqttex.Server do
 	def receive(server, Mqttex.PublishMsg[] = msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.SubscribeMsg[] = msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.UnSubscribeMsg[] = msg), do: do_receive(server, msg)
-	def receive(server, Mqttex.PingReqMsg[] = msg), do: do_receive(server, msg)
-	def receive(server, Mqttex.DisconnectMsg[] = msg), do: do_receive(server, msg)
+	def receive(server, %Mqttex.Msg.Simple{} = msg), do: do_receive(server, msg)
+	# def receive(server, Mqttex.PingReqMsg[] = msg), do: do_receive(server, msg)
+	# def receive(server, Mqttex.DisconnectMsg[] = msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PubRelMsg[] = msg), do: do_receive(server, msg)
 	
 	# internal function sending the message to the server
@@ -185,9 +186,9 @@ defmodule Mqttex.Server do
 		Mqttex.ProtocolManager.dispatch_receiver(receivers, msg)
 		{:noreply, state, state.connection.keep_alive_server}
 	end
-	def clean_session({:receive, Mqttex.PingReqMsg[] = _msg}, 
+	def clean_session({:receive, %Mqttex.Msg.Simple{msg_type: :ping_req} = _msg}, 
 			ConnectionState[client_proc: client, connection: con]=state) do
-		send(client, Mqttex.PingRespMsg.new)
+		send(client, Mqttex.Msg.ping_resp)
 		{:noreply, state, con.keep_alive_server}
 	end
 	def clean_session({:receive, Mqttex.SubscribeMsg[] = topics}, ConnectionState[]=state) do
@@ -207,7 +208,7 @@ defmodule Mqttex.Server do
 		new_state = state
 		{:noreply, new_state, new_state.connection.keep_alive_server}
 	end
-	def clean_session({:receive, Mqttex.DisconnectMsg[] = _msg}, ConnectionState[]=state) do
+	def clean_session({:receive, %Mqttex.Msg.Simple{msg_type: :disconnect} = _msg}, ConnectionState[]=state) do
 		# TODO: call unsubscribe all topics
 		Lager.debug("Got Disconnect, going to disconnected mode")
 		# no timeout here, we wait forever

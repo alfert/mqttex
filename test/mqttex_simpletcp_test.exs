@@ -23,7 +23,7 @@ defmodule MqttexSimpleTCPTest do
 		# Waiting for ConnAck
 		# assert_receive(Mqttex.ConnAckMsg[status: :ok], 100, "Still no ConnAck :-(")
 		assert_receive(response, 1_000, "Still got no kind of ConnAck msg :-(")
-		assert Mqttex.ConnAckMsg[status: :ok] == response
+		assert %Mqttex.Msg.ConnAck{status: :ok} == response
 
 		# Publishing Hello
 		Mqttex.Client.publish(client, "topic", "Hello", :fire_and_forget)
@@ -50,7 +50,7 @@ defmodule MqttexSimpleTCPTest do
 		clientARef = Process.monitor clientA
 
 		# Waiting for ConnAck
-		assert_receive(Mqttex.ConnAckMsg[status: :ok], 1_000, "Still no ConnAck :-(")
+		assert_receive(%Mqttex.Msg.ConnAck{status: :ok}, 1_000, "Still no ConnAck :-(")
 
 		# Disconnecting
 		Mqttex.Client.disconnect(clientA)
@@ -65,7 +65,7 @@ defmodule MqttexSimpleTCPTest do
 		clientBRef = Process.monitor clientB
 
 		# Waiting for ConnAck
-		assert_receive(Mqttex.ConnAckMsg[status: :ok], 1_000, "Still no ConnAck :-(")
+		assert_receive(%Mqttex.Msg.ConnAck{status: :ok}, 1_000, "Still no ConnAck :-(")
 
 		# Publishing Hello
 		Mqttex.Client.publish(clientB, "topic", "Hello", :fire_and_forget)
@@ -93,7 +93,7 @@ defmodule MqttexSimpleTCPTest do
 		assert is_pid(client)
 
 		# Waiting for ConnAck
-		assert_receive(Mqttex.ConnAckMsg[status: :ok], 1_000, "Still no ConnAck :-(")
+		assert_receive(%Mqttex.Msg.ConnAck{status: :ok}, 1_000, "Still no ConnAck :-(")
 
 		# Publishing Hello
 		Mqttex.Client.publish(client, "topic", "Hello", :fire_and_forget)

@@ -118,18 +118,17 @@ defmodule Mqttex.ProtocolManager do
 
 	Returns `:ok` if the OoS Protocol is found, otherwise `:error`.
 	"""
-	#def dispatch_sender(PMState[] = state, Mqttex.PubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
-	# def dispatch_sender(PMState[] = state, %Mqttex.PubAckMsg{msg_id: id} = msg),   do: dispatch(state, id, msg)
+	# def dispatch_sender(PMState[] = state, Mqttex.PubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
 	# def dispatch_sender(PMState[] = state, Mqttex.PubRecMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
 	# def dispatch_sender(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),  do: dispatch(state, id, msg)
-	def dispatch_sender(PMState[] = state, Mqttex.SubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	# def dispatch_sender(PMState[] = state, Mqttex.UnSubAckMsg[msg_id: id] = msg), do: dispatch(state, id, msg)
 	def dispatch_sender(PMState[] = state, %Mqttex.Msg.Simple{msg_id: id} = msg), do: dispatch(state, id, msg)
-	#def dispatch_sender(PMState[] = state, Mqttex.UnSubAckMsg[msg_id: id] = msg), do: dispatch(state, id, msg)
+	def dispatch_sender(PMState[] = state, Mqttex.SubAckMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
 	def dispatch_sender(PMState[] = _state, _msg), do: :error
 
+	# def dispatch_receiver(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),  do: dispatch(state, id, msg)
 	def dispatch_receiver(PMState[] = state, %Mqttex.Msg.Simple{msg_id: id} = msg), do: dispatch(state, id, msg)
 	def dispatch_receiver(PMState[] = state, Mqttex.PubRelMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
-	# def dispatch_receiver(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),  do: dispatch(state, id, msg)
 	def dispatch_receiver(PMState[] = _state, _msg), do: :error
 
 	@doc """

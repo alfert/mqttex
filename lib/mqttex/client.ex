@@ -61,7 +61,7 @@ defmodule Mqttex.Client do
 	Disconnects from the MQTT Server
 	"""
 	def disconnect(server) do
-		msg = Mqttex.DisconnectMsg.new
+		msg = Mqttex.Msg.disconnect()
 		:gen_server.cast(server, {:disconnect, msg})
 	end
 	
@@ -144,14 +144,14 @@ defmodule Mqttex.Client do
 		new_receiver = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
 		{:noreply, state.update(receivers: new_receiver), state.timeout}
 	end
-	def handle_cast({:receive, %Mqttex.Msg.Simple{} = msg}, state), do: dispatch_sender(msg, state)
-	# def handle_cast({:receive, Mqttex.PubRecMsg[] = msg}, state), do: dispatch_sender(msg, state)
-	# def handle_cast({:receive, Mqttex.PubCompMsg[] = msg}, state), do: dispatch_sender(msg, state)
-	def handle_cast({:receive, Mqttex.PubRelMsg[] = msg}, state), do: dispatch_receiver(msg, state)
-	def handle_cast({:receive, Mqttex.PingRespMsg[] = msg}, state) do
+	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :ping_resp} = msg}, state) do
 		# nothing to do, timeout is set for starting next ping again
 		{:noreply, state, state.timeout}
 	end
+	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_ack} = msg}, state), do: dispatch_sender(msg, state)
+	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_rec} = msg}, state), do: dispatch_sender(msg, state)
+	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_comp} = msg}, state), do: dispatch_sender(msg, state)
+	def handle_cast({:receive, Mqttex.PubRelMsg[] = msg}, state), do: dispatch_receiver(msg, state)
 	def handle_cast({:receive, msg = %Mqttex.Msg.ConnAck{}}, state) do
 		:ok = on_message(self, msg)
 		{:noreply, state, state.timeout}
@@ -175,14 +175,22 @@ defmodule Mqttex.Client do
 		{:noreply, state, state.timeout}
 	end
 	defp dispatch_sender(msg, ClientState[senders: senders] = state) do
-		:ok = Mqttex.ProtocolManager.dispatch_sender(senders, msg)
+		r = case Mqttex.ProtocolManager.dispatch_sender(senders, msg) do
+			:ok -> :ok
+			:error -> 
+				Lager.info("dispatch_sender failed with msg=#{inspect msg}")
+				Lager.info("   state is #{inspect state}")
+				# :error
+				:ok
+		end
+		:ok = r
 		{:noreply, state, state.timeout}
 	end
 
 	@doc "Initiate a Ping request, if there are no message transfers from/to the server"
 	def handle_info(:timeout, ClientState[] = state) do
 		# start a ping request
-		ping = Mqttex.PingReqMsg.new
+		ping = Mqttex.Msg.ping_req
 		do_send_msg(ping, state)		
 		{:noreply, state, state.timeout}
 	end
@@ -208,11 +216,11 @@ defmodule Mqttex.Client do
 	#############################################################################################
 
 	def receive(server, Mqttex.PublishMsg[]= msg), do: do_receive(server, msg)
+	def receive(server, Mqttex.PubRelMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Simple{}= msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.PubRecMsg[]= msg), do: do_receive(server, msg)
-	def receive(server, Mqttex.PubRelMsg[]= msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.PubCompMsg[]= msg), do: do_receive(server, msg)
-	def receive(server, Mqttex.PingRespMsg[]= msg), do: do_receive(server, msg)
+	# def receive(server, Mqttex.PingRespMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.ConnAck{}= msg), do: do_receive(server, msg)
 	
 	defp do_receive(server, msg) do

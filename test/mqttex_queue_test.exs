@@ -114,7 +114,7 @@ defmodule MqttexQueueTest do
 
 		bulk_send(messages, q, :exactly_once, "EO-Topic") # , 3_000)
 
-		result = slurp_all messages, Map.new, 10_000
+		result = slurp_all messages, Map.new, 11_000
 		Lager.debug "Slurp result: #{inspect result}"
 		
 		assert message_count == Dict.size(result)
@@ -149,7 +149,7 @@ defmodule MqttexQueueTest do
 		end
 	end
 	def slurp_all([], found, _timeout), do: slurp(found)
-	def slurp_all(Stream.Lazy[] = stream, found, timeout) do
+	def slurp_all(%Stream.Lazy{} = stream, found, timeout) do
 		slurp_all(Enum.to_list(stream), found, timeout)
 	end
 

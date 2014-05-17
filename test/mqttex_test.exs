@@ -4,7 +4,7 @@ defmodule MqttexTest do
 	test "A mqttx server is up and running" do
 		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
 		conMsg = Mqttex.ConnectionMsg.new [connection: connection]
-		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(conMsg, self)
+		{%Mqttex.Msg.ConnAck{}, server} = Mqttex.Server.connect(conMsg, self)
 		assert(is_pid(server))
 		ref = Process.monitor server
 
@@ -16,14 +16,14 @@ defmodule MqttexTest do
 	test "BA start server and ping it with messages" do
 		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
 		conMsg = Mqttex.ConnectionMsg.new [connection: connection]
-		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(conMsg, self)
+		{%Mqttex.Msg.ConnAck{}, server} = Mqttex.Server.connect(conMsg, self)
 		assert(is_pid(server))
 		ref = Process.monitor server
 
-		ping = Mqttex.PingReqMsg.new
+		ping = Mqttex.Msg.ping_req()
 		assert Mqttex.Server.receive(server, ping) == :ok
 
-		assert_receive Mqttex.PingRespMsg[]
+		assert_receive %Mqttex.Msg.Simple{msg_type: :ping_resp}
 
 		assert Mqttex.Server.stop(server) == :ok
 		wait_for_server_shutdown(ref)
@@ -33,15 +33,15 @@ defmodule MqttexTest do
 	test "CA start server and reconnect with messages" do
 		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
 		conMsg = Mqttex.ConnectionMsg.new [connection: connection]
-		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(conMsg, self)
+		{%Mqttex.Msg.ConnAck{}, server} = Mqttex.Server.connect(conMsg, self)
 		assert(is_pid(server))
 		ref = Process.monitor server
 
-		dis = Mqttex.DisconnectMsg.new
+		dis = Mqttex.Msg.disconnect()
 		assert Mqttex.Server.receive(server, dis) == :ok
 
 		{ack, s} = Mqttex.Server.connect(conMsg, self)
-		assert ack == Mqttex.ConnAckMsg.new
+		assert ack == Mqttex.Msg.conn_ack
 		assert s == server
 
 		assert Mqttex.Server.stop(server) == :ok
@@ -54,14 +54,14 @@ defmodule MqttexTest do
 		client_id = "MqttexTest A"
 		connection = Mqttex.Connection.new [client_id: client_id]
 		conMsg = Mqttex.ConnectionMsg.new [connection: connection]
-		{Mqttex.ConnAckMsg[], server} = Mqttex.Server.connect(conMsg, self)
+		{%Mqttex.Msg.ConnAck{}, server} = Mqttex.Server.connect(conMsg, self)
 		assert(is_pid(server))
 		ref = Process.monitor server
 
-		dis = Mqttex.DisconnectMsg.new
+		dis = Mqttex.Msg.disconnect()
 		assert Mqttex.Server.receive(server, dis) == :ok
 
-		ping = Mqttex.PingReqMsg.new	
+		ping = Mqttex.Msg.ping_req()
 		assert Mqttex.Server.receive(server, ping) == :ok
 
 		assert Mqttex.Server.stop(server) == :ok
