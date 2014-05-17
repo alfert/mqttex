@@ -70,7 +70,7 @@ defmodule Mqttex do
 	defrecord ConnectionMsg, header: FixedHeader.new, connection: Connection.new
 
 	# The return code for a connection acknowledgement
-	defrecord ConnAckMsg, status: :ok
+	# defrecord ConnAckMsg, status: :ok
 
 	# The publish message
 	defrecord PublishMsg, header: FixedHeader.new, topic: "", msg_id: 0, message: ""

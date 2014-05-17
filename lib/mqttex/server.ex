@@ -36,15 +36,15 @@ defmodule Mqttex.Server do
 	exists, we have a reconnection situation: if the server is in state `disconnected` 
 	the reconnection can be executed. Otherwise an error occurs.
 	"""
-	@spec connect(Mqttex.ConnectionMsg.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
+	@spec connect(Mqttex.ConnectionMsg.t, pid) :: Mqttex.Msg.ConnAck.t | {Mqttex.Msg.ConnAck.t, pid}
 	def connect(Mqttex.ConnectionMsg[connection: connection] = con, client_proc \\ self()) do
 		value = case Mqttex.SupServer.start_server(connection, client_proc) do
 			{:error, {:already_started, pid}} -> reconnect(pid, connection, client_proc) 
 			any -> any
 		end
 		case value do 
-			{:ok, pid}       -> {Mqttex.ConnAckMsg.new([status: :ok]), pid}
-			{:error, reason} -> Mqttex.ConnAckMsg.new [status: reason]
+			{:ok, pid}       -> {Mqttex.Msg.conn_ack, pid}
+			{:error, reason} -> Mqttex.Msg.conn_ack(reason)
 		end
 	end
 
