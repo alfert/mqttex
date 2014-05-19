@@ -247,6 +247,8 @@ defmodule Mqttex.QoS2Receiver do
 	`Exactly Once` quality of service. 
 	"""
 
+	@nr_of_timeout 5
+
 	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
 	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
 #		mod.on_message(receiver, msg)
@@ -266,9 +268,26 @@ defmodule Mqttex.QoS2Receiver do
 
 	def send_complete(msg, msg_id, mod, receiver, _duplicate) do
 		mod.on_message(receiver, msg)
+		wait_for_completed_timeout(msg_id, mod, receiver, @nr_of_timeout)
+	end
+
+	@doc """
+	The message transfer is completed in general, but the complete message may not arrive at
+	the sender. As a result, he will send the release message again, waiting for the complete 
+	message. Alas, this might never end. But to reduce this kind of failure, we wait a couple of 
+	times and only after that time we declare the transer as finished. But who knows? Exactly Once 
+	is broken by design.
+	"""
+	def wait_for_completed_timeout(msg_id, mod, receiver, 0), do: :ok
+	def wait_for_completed_timeout(msg_id, mod, receiver, nr_of_timeout) do
 		complete = Mqttex.Msg.pub_comp(msg_id)
-		mod.send_complete(receiver, complete)
-		:ok
+		timeout = mod.send_complete(receiver, complete)
+		receive do
+			Mqttex.PubRelMsg[msg_id: ^msg_id] -> 
+				wait_for_completed_timeout(msg_id, mod, receiver, nr_of_timeout - 1)
+			after  timeout                    -> 
+				wait_for_completed_timeout(msg_id, mod, receiver, nr_of_timeout - 1)
+		end
 	end
 
 end
