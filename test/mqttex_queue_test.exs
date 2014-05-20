@@ -86,12 +86,17 @@ defmodule MqttexQueueTest do
 
 	test "Many EO messages" do
 		{q, _qIn} = setupQueue()
-		messages = generateMessages(100)
+		message_count = 100
+		messages = generateMessages(message_count)
 		# Lager.debug "messages are: #{inspect messages}"
 
 		bulk_send(messages, q, :exactly_once, "EO-Topic")
 		result = slurp()
 		Lager.debug "Slurp result: #{inspect result}"
+
+		print_stats(message_count, Dict.size(result))
+
+		assert message_count == Dict.size(result)
 		Enum.each(messages, fn(m) -> assert result[m] == 1 end)
 	end
 
@@ -107,6 +112,9 @@ defmodule MqttexQueueTest do
 	end
 
 	test "Many EO messages via lossy queue" do
+		# {:ok, pid} = 
+		# Mqttex.Test.MsgStat.start_link()
+
 		{q, _qIn} = setupQueue(50)
 		message_count = 100
 		messages = generateMessages(message_count)
@@ -114,13 +122,37 @@ defmodule MqttexQueueTest do
 
 		bulk_send(messages, q, :exactly_once, "EO-Topic") # , 3_000)
 
-		result = slurp_all messages, Map.new, 11_000
+		result = slurp_all messages, Map.new, 1_000
 		Lager.debug "Slurp result: #{inspect result}"
 		
+		print_stats(message_count, Dict.size(result))
+
 		assert message_count == Dict.size(result)
 		Enum.each(messages, fn(m) -> assert 1 == result[m] end)
 	end
 
+
+	setup do
+		Mqttex.Test.MsgStat.start_link()
+		:ok
+	end
+	
+	teardown do
+		Mqttex.Test.MsgStat.stop()
+		:ok
+	end
+	
+
+	def print_stats(message_count, result_count) do
+		{msgs, losses} = Mqttex.Test.MsgStat.get_counts()
+		IO.puts """
+		Logical Messages sent:     #{message_count}
+		Logical Messages received: #{result_count}
+		Messages sent in Channel:  #{msgs}
+		Messages lost in Channel:  #{losses}
+		"""
+	end
+	
 
 	@doc """
 	Sends a bulk of messages into a queue, a topic and with a given QoS.
@@ -185,7 +217,7 @@ defmodule MqttexQueueTest do
 		else
 			Lager.debug "Setting up lossy channel (loss = #{loss})"
 		end
-		losslist = %{loss: loss}
+		losslist = %{loss: loss, stats: true}
 		# Create Outbound and Inbound Communication Channels
 		chSender = spawn_link(Mqttex.Test.Channel, :channel, [losslist])
 		assert is_pid(chSender)
