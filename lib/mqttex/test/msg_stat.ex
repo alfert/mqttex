@@ -35,8 +35,15 @@ defmodule Mqttex.Test.MsgStat do
 		:gen_server.call(@my_name, :get_counts)
 	end
 	
+	def clear() do
+		:gen_server.call(@my_name, :clear)
+	end
+	
 	def handle_call(:get_counts, _from, state = %Mqttex.Test.MsgStat{}) do
 		{:reply, {state.messages, state.losses}, state}
+	end
+	def handle_call(:clear, _from, state = %Mqttex.Test.MsgStat{}) do
+		{:reply, :ok, %{state | messages: 0, losses: 0}}
 	end
 	
 
