@@ -7,131 +7,131 @@ defmodule MqttexQueueTest do
 	use ExUnit.Case
 	import Mqttex.Test.Tools
 
-	# test "Simple Send via Queue" do
-	# 	{q, qIn} = setupQueue()
-	# 	Lager.debug "q is #{inspect q}"
-	# 	Lager.debug "qIn is #{inspect qIn}"
-	# 	Mqttex.Test.SessionAdapter.send_msg(q, :hello)
-	# 	# this must fail, hello is not a proper message 
-	# 	assert_receive :hello, 200
-	# 	# receive do
-	# 	# 	msg -> Lager.debug "Got message #{inspect msg}"
-	# 	# 	after 200 -> Lager.debug "timeout :-("
-	# 	# end
-	# 	# assert_receive {:DONE, ^ref, _, _, _},  200
-	# end
+	test "Simple Send via Queue" do
+		{q, qIn} = setupQueue()
+		Lager.debug "q is #{inspect q}"
+		Lager.debug "qIn is #{inspect qIn}"
+		Mqttex.Test.SessionAdapter.send_msg(q, :hello)
+		# this must fail, hello is not a proper message 
+		assert_receive :hello, 200
+		# receive do
+		# 	msg -> Lager.debug "Got message #{inspect msg}"
+		# 	after 200 -> Lager.debug "timeout :-("
+		# end
+		# assert_receive {:DONE, ^ref, _, _, _},  200
+	end
 
-	# test "Publish FaF via Queue" do
-	# 	{q, _qIn} = setupQueue()
-	# 	msg = "Initial Message FaF"
-	# 	Mqttex.Test.SessionAdapter.publish(q, "FAF-Topic", msg, :fire_and_forget)
+	test "Publish FaF via Queue" do
+		{q, _qIn} = setupQueue()
+		msg = "Initial Message FaF"
+		Mqttex.Test.SessionAdapter.publish(q, "FAF-Topic", msg, :fire_and_forget)
 
-	# 	assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
-	# end
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
+	end
 
-	# test "Publish ALO via Queue" do
-	# 	{q, _qIn} = setupQueue()
-	# 	msg = "Initial Message ALO"
-	# 	Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg, :at_least_once)
+	test "Publish ALO via Queue" do
+		{q, _qIn} = setupQueue()
+		msg = "Initial Message ALO"
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg, :at_least_once)
 
-	# 	assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
-	# end
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
+	end
 
-	# test "Publish EO via Queue" do
-	# 	{q, _qIn} = setupQueue()
-	# 	msg = "Initial Message EO"
-	# 	Mqttex.Test.SessionAdapter.publish(q, "EO-Topic", msg, :exactly_once)
+	test "Publish EO via Queue" do
+		{q, _qIn} = setupQueue()
+		msg = "Initial Message EO"
+		Mqttex.Test.SessionAdapter.publish(q, "EO-Topic", msg, :exactly_once)
 
-	# 	assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
-	# end
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
+	end
 
-	# test "Publish ALO via Lossy Queue" do
-	# 	{q, _qIn} = setupQueue(70)
-	# 	msg = "Lossy Message ALO"
-	# 	Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg, :at_least_once)
+	test "Publish ALO via Lossy Queue" do
+		{q, _qIn} = setupQueue(50)
+		msg = "Lossy Message ALO"
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg, :at_least_once)
 
-	# 	assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
-	# end
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
+	end
 
-	# test "Publish EO via Lossy Queue" do
-	# 	{q, _qIn} = setupQueue(70)
-	# 	msg = "Lossy Message EO"
-	# 	Mqttex.Test.SessionAdapter.publish(q, "EO-Topic", msg, :exactly_once)
+	test "Publish EO via Lossy Queue" do
+		{q, _qIn} = setupQueue(50)
+		msg = "Lossy Message EO"
+		Mqttex.Test.SessionAdapter.publish(q, "EO-Topic", msg, :exactly_once)
 
-	# 	assert_receive Mqttex.PublishMsg[message: ^msg], 1_100
-	# end
+		assert_receive Mqttex.PublishMsg[message: ^msg], 1_100
+	end
 
-	# test "Publish two ALOs" do
-	# 	{q, _qIn} = setupQueue()
-	# 	msg1 = "Initial Message ALO"
-	# 	Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg1, :at_least_once)
-	# 	assert_receive Mqttex.PublishMsg[message: ^msg1], 1_000
+	test "Publish two ALOs" do
+		{q, _qIn} = setupQueue()
+		msg1 = "Initial Message ALO"
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg1, :at_least_once)
+		assert_receive Mqttex.PublishMsg[message: ^msg1], 1_000
 
-	# 	msg2 = "2nd Message ALO"
-	# 	Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg2, :at_least_once)
-	# 	assert_receive Mqttex.PublishMsg[message: ^msg2], 1_000
-	# end
+		msg2 = "2nd Message ALO"
+		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg2, :at_least_once)
+		assert_receive Mqttex.PublishMsg[message: ^msg2], 1_000
+	end
 
 
-	# test "Many ALO messages" do
-	# 	{q, _qIn} = setupQueue()
-	# 	messages = generateMessages(100)
-	# 	# Lager.debug "messages are: #{inspect messages}"
+	test "Many ALO messages" do
+		{q, _qIn} = setupQueue()
+		messages = generateMessages(100)
+		# Lager.debug "messages are: #{inspect messages}"
 
-	# 	bulk_send(messages, q, :at_least_once, "ALO-Topic")
-	# 	result = slurp()
-	# 	Lager.debug"Slurp result: #{inspect result}"
-	# 	Enum.each(messages, fn(m) -> assert result[m] > 0 end)
-	# end
+		bulk_send(messages, q, :at_least_once, "ALO-Topic")
+		result = slurp()
+		Lager.debug"Slurp result: #{inspect result}"
+		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
+	end
 
-	# test "Many EO messages" do
-	# 	{q, _qIn} = setupQueue()
-	# 	message_count = 100
-	# 	messages = generateMessages(message_count)
-	# 	# Lager.debug "messages are: #{inspect messages}"
+	test "Many EO messages" do
+		{q, _qIn} = setupQueue(0)
+		message_count = 100
+		messages = generateMessages(message_count)
+		# Lager.debug "messages are: #{inspect messages}"
 
-	# 	bulk_send(messages, q, :exactly_once, "EO-Topic")
-	# 	result = slurp()
-	# 	Lager.debug "Slurp result: #{inspect result}"
+		bulk_send(messages, q, :exactly_once, "EO-Topic")
+		result = slurp()
+		Lager.debug "Slurp result: #{inspect result}"
 
-	# 	Lager.info "Stats for many EO with good queue"
-	# 	print_stats(message_count, Dict.size(result))
+		Lager.info "Stats for many EO with good queue"
+		print_stats(message_count, Dict.size(result))
 
-	# 	assert message_count == Dict.size(result)
-	# 	Enum.each(messages, fn(m) -> assert result[m] == 1 end)
-	# end
+		assert message_count == Dict.size(result)
+		Enum.each(messages, fn(m) -> assert result[m] == 1 end)
+	end
 
-	# test "Many ALO messages via lossy queue" do
-	# 	{q, _qIn} = setupQueue(50)
-	# 	messages = generateMessages(100)
-	# 	# Lager.debug "messages are: #{inspect messages}"
+	test "Many ALO messages via lossy queue" do
+		{q, _qIn} = setupQueue(25)
+		messages = generateMessages(100)
+		# Lager.debug "messages are: #{inspect messages}"
 
-	# 	bulk_send(messages, q, :at_least_once, "ALO-Topic")
-	# 	result = slurp_all messages
-	# 	Lager.debug "Slurp result: #{inspect result}"
-	# 	Enum.each(messages, fn(m) -> assert result[m] > 0 end)
-	# end
+		bulk_send(messages, q, :at_least_once, "ALO-Topic")
+		result = slurp_all messages
+		Lager.debug "Slurp result: #{inspect result}"
+		Enum.each(messages, fn(m) -> assert result[m] > 0 end)
+	end
 
-	# test "Many EO messages via lossy queue" do
-	# 	# {:ok, pid} = 
-	# 	# Mqttex.Test.MsgStat.start_link()
+	test "Many EO messages via lossy queue" do
+		# {:ok, pid} = 
+		# Mqttex.Test.MsgStat.start_link()
 
-	# 	{q, _qIn} = setupQueue(50)
-	# 	message_count = 100
-	# 	messages = generateMessages(message_count)
-	# 	# Lager.debug "messages are: #{inspect messages}"
+		{q, _qIn} = setupQueue(25)
+		message_count = 100
+		messages = generateMessages(message_count)
+		# Lager.debug "messages are: #{inspect messages}"
 
-	# 	bulk_send(messages, q, :exactly_once, "EO-Topic") # , 3_000)
+		bulk_send(messages, q, :exactly_once, "EO-Topic") # , 3_000)
 
-	# 	result = slurp_all messages, Map.new, 1_000
-	# 	Lager.debug "Slurp result: #{inspect result}"
+		result = slurp_all messages, Map.new, 3_000
+		Lager.debug "Slurp result: #{inspect result}"
 		
-	# 	Lager.info "Stats for many EO with lossy queue"
-	# 	print_stats(message_count, Dict.size(result))
+		Lager.info "Stats for many EO with lossy queue"
+		print_stats(message_count, Dict.size(result))
 
-	# 	assert message_count == Dict.size(result)
-	# 	Enum.each(messages, fn(m) -> assert 1 == result[m] end)
-	# end
+		assert message_count == Dict.size(result)
+		Enum.each(messages, fn(m) -> assert 1 == result[m] end)
+	end
 
 	test "EO statistics" do
 		lossy = [0, 1, 2, 3, 5, 7, 10, 15, 20, 25]
