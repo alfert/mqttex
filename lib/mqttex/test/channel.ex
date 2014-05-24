@@ -2,11 +2,11 @@ defmodule Mqttex.Test.Channel do
 	require Lager
 	@moduledoc """
 	This module provide a simple channel, that is lossy and reorders the messages. 
-	It is used for testing only. 
+	It is used for testing onlys. 
 	"""
 
 	@doc "A simple channel that forwards all messages it receives"
-	def channel(state \\ [loss: 0]) do
+	def channel(state \\ %{loss: 0, stats: false}) do
 		receive do
 			{:register, receiver} -> 
 				s = Dict.put(state, :receiver, receiver)
@@ -29,8 +29,10 @@ defmodule Mqttex.Test.Channel do
 						# Lager.debug ("state = #{inspect state}")
 						if (state[:loss] < lossRnd) do
 							send_msg(receiver, any, state)
+							if state[:stats], do: Mqttex.Test.MsgStat.new_msg 
 						else
 							Lager.debug "Swallow the message #{inspect any}"
+							if state[:stats], do: Mqttex.Test.MsgStat.new_loss
 						end
 						channel(state)
 				end
