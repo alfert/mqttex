@@ -1,4 +1,4 @@
-defmodule MqttexQueueTest do
+defmodule MqttexDecoderTest do
 	@moduledoc """
 	This test requires the Lossy Channel for checking that the protocols work for many 
 	messages to send.
