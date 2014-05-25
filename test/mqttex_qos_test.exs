@@ -57,7 +57,8 @@ defmodule MqttexQosTest do
 	end
 
 	def makePublishMsg(topic, content, qos \\ :fire_and_forget, id \\ 0 ) do
-		header= Mqttex.FixedHeader.new([qos: qos, message_type: :publish])
+		#header= Mqttex.FixedHeader.new([qos: qos, message_type: :publish])
+		header = Mqttex.Msg.fixed_header(:publish, false, qos, false, 0)
 		Mqttex.PublishMsg.new([header: header, topic: topic, message: content, msg_id: id ])
 	end
 	

@@ -154,7 +154,8 @@ defmodule Mqttex.QoS1Sender do
 	end
 	
 	def send_msg(msg, id, mod, sender, duplicate) do
-		h = msg.header.duplicate(duplicate == :second)
+		# h = msg.header.duplicate(duplicate == :second)
+		h = %Mqttex.Msg.FixedHeader{msg.header | duplicate: duplicate == :second}
 		m = msg.update(header: h)
 		timeout = mod.send_msg(sender, m)
 		receive do
@@ -214,7 +215,8 @@ defmodule Mqttex.QoS2Sender do
 	(see `send_release`).
 	"""
 	def send_msg(Mqttex.PublishMsg[msg_id: msg_id, header: h] = msg, mod, sender, duplicate) do
-		new_h = h.duplicate(duplicate == :second)
+		# new_h = h.duplicate(duplicate == :second)
+		new_h = %Mqttex.Msg.FixedHeader{h | duplicate: duplicate == :second}
 		m = msg.header(new_h)
 		timeout = mod.send_msg(sender, m)
 		receive do
@@ -230,7 +232,8 @@ defmodule Mqttex.QoS2Sender do
 	message until a response arrives.
 	"""
 	def send_release(msg_id, mod, sender, duplicate) do
-		header = Mqttex.FixedHeader[duplicate: duplicate == :second, qos: :at_least_once]
+		# header = Mqttex.FixedHeader[duplicate: duplicate == :second, qos: :at_least_once]
+		header = Mqttex.Msg.fixed_header(:pub_rel, duplicate == :second, :at_least_once, false, 2)
 		m = Mqttex.PubRelMsg[header: header, msg_id: msg_id]
 		timeout = mod.send_release(sender, m)
 		receive do

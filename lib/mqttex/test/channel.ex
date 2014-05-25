@@ -70,7 +70,7 @@ defmodule Mqttex.Test.SessionAdapter do
 	end
 
 	def publish(session, topic, body, qos) do
-		header = Mqttex.FixedHeader.new([qos: qos])
+		header = Mqttex.Msg.fixed_header(:publish, false, qos, false, 0)
 		msg = Mqttex.PublishMsg.new([header: header, topic: topic, message: body])
 		publish(session, msg)
 	end

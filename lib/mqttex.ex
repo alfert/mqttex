@@ -46,12 +46,12 @@ defmodule Mqttex do
 						:not_authorized 
 
 	# The fixed header of a MQTT message
-	defrecord FixedHeader, 
-		message_type: :reserved,
-		duplicate: false,
-		qos: :fire_and_forget,
-		retain: false,
-		length: 0			
+	# defrecord FixedHeader, 
+	# 	message_type: :reserved,
+	# 	duplicate: false,
+	# 	qos: :fire_and_forget,
+	# 	retain: false,
+	# 	length: 0			
 
 	# The connection information for new connections
 	defrecord Connection, 
@@ -67,13 +67,13 @@ defmodule Mqttex do
 		will_message: ""
 
 	# The Connection message
-	defrecord ConnectionMsg, header: FixedHeader.new, connection: Connection.new
+	defrecord ConnectionMsg, header: Mqttex.Msg.fixed_header(), connection: Connection.new
 
 	# The return code for a connection acknowledgement
 	# defrecord ConnAckMsg, status: :ok
 
 	# The publish message
-	defrecord PublishMsg, header: FixedHeader.new, topic: "", msg_id: 0, message: ""
+	defrecord PublishMsg, header: Mqttex.Msg.fixed_header(), topic: "", msg_id: 0, message: ""
 
 
 
@@ -88,19 +88,19 @@ defmodule Mqttex do
 	# defrecord PubRecMsg, msg_id: 0
 
 	# The pubrel message
-	defrecord PubRelMsg, header: FixedHeader.new, msg_id: 0
+	defrecord PubRelMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0
 
 	# The pubcomp message
 	# defrecord PubCompMsg, msg_id: 0
 
 	# The Subscribe message
-	defrecord SubscribeMsg, header: FixedHeader.new, msg_id: 0, topics: [{"", :fire_and_forget}]
+	defrecord SubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: [{"", :fire_and_forget}]
 
 	# The Suback message
 	defrecord SubAckMsg, msg_id: 0, granted_qos: []
 
 	# The UnSubscribe message
-	defrecord UnSubscribeMsg, header: FixedHeader.new, msg_id: 0, topics: []
+	defrecord UnSubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: []
 
 	# The UnSubAck message
 	#defrecord UnSubAckMsg, msg_id: 0

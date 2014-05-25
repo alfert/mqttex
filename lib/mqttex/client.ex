@@ -84,7 +84,7 @@ defmodule Mqttex.Client do
 	Publishes a message with the given topic and qos.
 	"""
 	def publish(server, topic, message, qos) do
-		header = Mqttex.FixedHeader.new([qos: qos])
+		header = Mqttex.Msg.fixed_header(:publish, false, qos, false, 0)
 		msg = Mqttex.PublishMsg.new([header: header, topic: topic, message: message])
 		:gen_server.cast(server, {:publish, msg})
 	end
