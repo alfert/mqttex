@@ -5,30 +5,37 @@ defmodule Mqttex.Decoder do
 
 	use Bitwise
 
-	##
-	# Important is how to design the interaction with reading a 2 bytes at the 
-	# beginning of a message and then - after inspecting the header	- to read
-	# the final number of bytes of the messages.
-	# 
-
 	@type next_byte_fun :: (() -> {binary, next_byte_fun})
+	@type read_message_fun :: ((pos_integer) -> binary)
 
-	@spec decode_fixheader(binary, next_byte_fun ) :: Mqttex.FixedHeader.t
+	# @type decode(binary, next_byte_fun) :: Mqttex.Msg.Simple.t 
+	def decode(msg = <<_m :: size(16)>>, readByte, readMsg) do
+		header = decode_fixheader(msg, readByte)
+		var_m = readMsg.(header.length)
+		# decode_message(var_m, header)
+	end
+	
+	#####################################################
+	## TODO:
+	##
+	## Replace the FixedHeader as a struct. 
+	##
+	#####################################################
+
+
+	@spec decode_fixheader(binary, next_byte_fun ) :: Mqttex.Msg.FixedHeader.t
 	def decode_fixheader(<<type :: size(4), dup :: size(1), qos :: size(2), 
 						   retain :: size(1), len :: size(8)>>, readByte) do
-		FixedHeader.new([
-			msg_type: binary_to_msg_type(type), 
-			dup: (dup == 1), 
-			qos: binary_to_qos(qos),
-			retain: (retain == 1),
-			length: binary_to_length(len, readByte)])
+		Mqttex.Msg.fixed_header(binary_to_msg_type(type), 
+			(dup == 1), binary_to_qos(qos),(retain == 1),
+			binary_to_length(len, readByte))
 	end
 
 	@spec binary_to_length(binary, integer, next_byte_fun) :: integer
-	def binary_to_length(<<overflow :: size(1), len :: size(7)>>, count = 0, readByte) do
+	def binary_to_length(<<overflow :: size(1), len :: size(7)>>, count = 0 \\ 4, readByte) do
 		raise "Invalid length"
 	end
-	def binary_to_length(<<overflow :: size(1), len :: size(7)>>, count \\ 4, readByte) do
+	def binary_to_length(<<overflow :: size(1), len :: size(7)>>, count, readByte) do
 		case overflow do
 			1 ->
 				{byte, nextByte} = readByte.() 
