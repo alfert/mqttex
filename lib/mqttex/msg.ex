@@ -38,6 +38,24 @@ defmodule Mqttex.Msg do
 	@doc "Creates a new simple message of type `conn_ack`"
 	def conn_ack(status \\ :ok), do: %ConnAck{status: status}
 	
+	defmodule FixedHeader do
+		@moduledoc """
+		Defines the fixed header of a MQTT message.
+		"""
+		defstruct message_type: :reserved :: Mqttex.message_type,
+			duplicate: false :: boolean,
+			qos: :fire_and_forget :: Mqttex.qos_type,
+			retain: false :: boolean,
+			length: 0 :: pos_integer
+	end
 
+	def fixed_header(msg_type, dup, qos, retain, length) when 
+		is_atom(msg_type) and is_boolean(dup) and is_atom(qos) and
+		is_boolean(retain) and is_integer(length) and length >= 0
+		do
+		%FixedHeader{message_type: msg_type, duplicate: dup, 
+			qos: qos, retain: retain, length: length}
+	end
+	
 
 end
