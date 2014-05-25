@@ -39,11 +39,18 @@ defmodule MqttexDecoderTest do
 		end 
 	end
 
+	@doc "Simulates the TCP get functions to read the next byte from a list of bytes."
 	def next_byte([]), do: {nil, nil} 
 	def next_byte([h | t]) do
 		{<<h>>, fn() -> (next_byte(t)) end}
 	end
 	
+	test "Read UTF8" do
+		string = <<0x0, 0x4, 0x4f, 0x54, 0x57, 0x50>>
+		{u, r} = Mqttex.Decoder.utf8(string)
+		assert u == "OTWP"
+		assert r == <<>>
+	end
 
 
 end

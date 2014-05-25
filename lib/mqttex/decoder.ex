@@ -14,14 +14,6 @@ defmodule Mqttex.Decoder do
 		var_m = readMsg.(header.length)
 		# decode_message(var_m, header)
 	end
-	
-	#####################################################
-	## TODO:
-	##
-	## Replace the FixedHeader as a struct. 
-	##
-	#####################################################
-
 
 	@spec decode_fixheader(binary, next_byte_fun ) :: Mqttex.Msg.FixedHeader.t
 	def decode_fixheader(<<type :: size(4), dup :: size(1), qos :: size(2), 
@@ -30,6 +22,25 @@ defmodule Mqttex.Decoder do
 			(dup == 1), binary_to_qos(qos),(retain == 1),
 			binary_to_length(len, readByte))
 	end
+
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :publish}) do
+		decode_publish(msg, h)
+	end
+	
+	def decode_publish(msg, h) do
+		{topic, payload } = utf8(msg)
+	end
+	
+	@doc """
+	Decodes an utf8 string (in the header) of a MQTT message. Returns the string and the
+	remaining input message.
+	"""
+	@spec utf8(binary) :: {binary, binary}
+	def utf8(<<length :: [integer, unsigned, size(16)], content :: [bytes, size(length)], rest :: binary>>) do
+		{content, rest}
+	end
+	
+
 
 	@spec binary_to_length(binary, integer, next_byte_fun) :: integer
 	def binary_to_length(<<overflow :: size(1), len :: size(7)>>, count = 0 \\ 4, readByte) do
