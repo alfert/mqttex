@@ -154,9 +154,7 @@ defmodule Mqttex.QoS1Sender do
 	end
 	
 	def send_msg(msg, id, mod, sender, duplicate) do
-		# h = msg.header.duplicate(duplicate == :second)
-		h = %Mqttex.Msg.FixedHeader{msg.header | duplicate: duplicate == :second}
-		m = msg.update(header: h)
+		m = Mqttex.Msg.Publish.duplicate(msg, duplicate == :second)
 		timeout = mod.send_msg(sender, m)
 		receive do
 			%Mqttex.Msg.Simple{msg_type: :pub_ack, msg_id: ^id}   -> :ok
