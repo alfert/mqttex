@@ -35,7 +35,7 @@ defmodule Mqttex.Msg do
 		defstruct status: :ok :: Mqttex.conn_ack_type
 	end
 
-	@doc "Creates a new simple message of type `conn_ack`"
+	@doc "Creates a new message of type `conn_ack`"
 	def conn_ack(status \\ :ok), do: %ConnAck{status: status}
 	
 	defmodule FixedHeader do
@@ -58,5 +58,39 @@ defmodule Mqttex.Msg do
 			qos: qos, retain: retain, length: length}
 	end
 	
+	defmodule Publish do
+		@moduledoc """
+		Defines the publish message.
+		"""
+
+		defstruct topic: "" :: binary,
+			msg_id: 0 :: pos_integer,
+			message: "" :: binary,
+			header: %FixedHeader{} :: Mqttex.Msg.FixedHeader 
+
+		@doc "Sets the duplicate flag to `dup` in the message"
+		def duplicate(%Publish{header: h} = m, dup \\ true) do
+			new_h = %FixedHeader{h | duplicate: dup}
+			%Publish{m | header: new_h}
+		end
+		
+	end
+	
+	##############
+	## define publish function and replace Record
+	## does the function compute/correct the fixed header (i.e. length attribute) 
+	##    Makes sense, or?
+	##############
+
+	@doc "Creates a new publish message. The message id is not set."
+	def publish(topic, message, qos) do
+		length = size(message) + 
+		         size(topic) + 2 + # with 16 bit size of topic
+		         2 # 16 bit message id
+		h = fixed_header(:publish, false, qos, false, length)
+		%Publish{topic: topic, message: message, header: h}
+	end
+
+
 
 end

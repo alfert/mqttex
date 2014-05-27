@@ -30,7 +30,7 @@ defmodule Mqttex.Topic do
 		:gen_server.start_link(topic_server(topic), __MODULE__,  topic, [])
 	end
 	
-	def publish(Mqttex.PublishMsg[] = msg, client) do
+	def publish(%Mqttex.Msg.Publish{} = msg, client) do
 		:gen_server.call(topic_server(msg), {:publish, msg, client})
 	end
 	
@@ -54,7 +54,7 @@ defmodule Mqttex.Topic do
 		
 
 	@doc "Returns the name of the `TopicServer` for the given topic."
-	def topic_server(Mqttex.PublishMsg[topic: topic]) do
+	def topic_server(%Mqttex.Msg.Publish{topic: topic}) do
 		topic_server(topic)
 	end
 	def topic_server(topic) when is_binary(topic) do
@@ -72,7 +72,7 @@ defmodule Mqttex.Topic do
 	end
 
 
-	def handle_call({:publish, Mqttex.PublishMsg[message: content] = _msg, _client}, 
+	def handle_call({:publish, %Mqttex.Msg.Publish{message: content} = _msg, _client}, 
 				    _from, State[subscriptions: subs] = state) do
 		Enum.each(subs, fn({session, qos}) -> send_msg(session, content, qos) end)
 		{:reply, :ok, state}

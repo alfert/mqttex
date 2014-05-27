@@ -46,8 +46,8 @@ defmodule Mqttex.TopicManager do
 	Publishing a messages means dispatching to topic. If the topic does not 
 	exist yet, it is started. 
 	"""
-	@spec publish(Mqttex.PublishMsg.t, binary) :: :ok
-	def publish(Mqttex.PublishMsg[] = msg, from) do
+	@spec publish(Mqttex.Msg.Publish.t, binary) :: :ok
+	def publish(%Mqttex.Msg.Publish{} = msg, from) do
 		# if the topic exists, publish it directly without 
 		# interfering with the topic manager.
 		try do
@@ -65,7 +65,7 @@ defmodule Mqttex.TopicManager do
 	Starts explicitely a topic from a `PublisgMsg` and publishes
 	the message.
 	"""
-	def start_topic(Mqttex.PublishMsg[] = msg, from) do
+	def start_topic(%Mqttex.Msg.Publish{} = msg, from) do
 		:gen_server.call(@my_name, {:start_topic, msg, from})
 	end
 	
@@ -91,7 +91,7 @@ defmodule Mqttex.TopicManager do
 		{:ok, State.new}
 	end
 
-	def handle_call({:start_topic, Mqttex.PublishMsg[topic: topic] = _msg, _from}, _, 
+	def handle_call({:start_topic, %Mqttex.Msg.Publish{topic: topic} = _msg, _from}, _, 
 						State[] = state) do
 		# ignore any problems during start, in particular :already_started
 		# because we call the topic server via its name. Any problems happening

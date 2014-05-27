@@ -40,7 +40,7 @@ defmodule Mqttex.ProtocolManager do
 		sender(state, msg, session_mod, self)
 	end
 	
-	def sender(PMState[] = state, Mqttex.PublishMsg[] = msg, session_mod, session_pid) do
+	def sender(PMState[] = state, %Mqttex.Msg.Publish{} = msg, session_mod, session_pid) do
 		msg_id = msg_id(state)
 		new_msg = msg.update([msg_id: msg_id])
 		header = msg.header
@@ -86,7 +86,7 @@ defmodule Mqttex.ProtocolManager do
 	def receiver(state, msg, session_mod) do
 		receiver(state, msg, session_mod, self)
 	end
-	def receiver(PMState[] = state, Mqttex.PublishMsg[msg_id: id] = msg, session_mod, session_pid) do
+	def receiver(PMState[] = state, %Mqttex.Msg.Publish{msg_id: id} = msg, session_mod, session_pid) do
 		header = msg.header
 		do_receive(state, msg, id, header.qos, session_mod, session_pid)
 	end

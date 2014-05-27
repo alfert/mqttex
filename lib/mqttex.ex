@@ -73,7 +73,7 @@ defmodule Mqttex do
 	# defrecord ConnAckMsg, status: :ok
 
 	# The publish message
-	defrecord PublishMsg, header: Mqttex.Msg.fixed_header(), topic: "", msg_id: 0, message: ""
+	# defrecord PublishMsg, header: Mqttex.Msg.fixed_header(), topic: "", msg_id: 0, message: ""
 
 
 

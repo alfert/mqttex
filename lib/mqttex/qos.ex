@@ -5,7 +5,7 @@ defmodule Mqttex.SenderBehaviour do
 
 	use Behaviour
 
-	@type message_type :: Mqttex.PublishMsg.t | Mqttex.SubscribeMsg.t | Mqttex.UnSubscribeMsg.t
+	@type message_type :: Mqttex.Msg.Publish.t | Mqttex.SubscribeMsg.t | Mqttex.UnSubscribeMsg.t
 
 	@doc """
 	Sends a message and returns the current timeout for an answer in milliseconds. 
@@ -102,8 +102,8 @@ defmodule Mqttex.QoS0Sender do
 	Implements a `fire and forget` sender protocol.
 	"""
 
-	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
-	def start(Mqttex.PublishMsg[] = msg, mod, sender) do
+	@spec start(Mqttex.Msg.Publish.t, atom, pid) :: :ok
+	def start(%Mqttex.Msg.Publish{} = msg, mod, sender) do
 		receive do
 			:go -> send_msg(msg, mod, sender)
 		end
@@ -121,8 +121,8 @@ defmodule Mqttex.QoS0Receiver do
 	Implements the receiver for the `fire and forget`protocol. Delegates the incoming
 	message to the `on_message` function of the `receiver`'s module.
 	"""
-	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
-	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
+	@spec start(Mqttex.Msg.Publish.t, atom, pid) :: :ok
+	def start(%Mqttex.Msg.Publish{} = msg, mod, receiver) do
 		mod.on_message(receiver, msg)
 		mod.finish_receiver(receiver, self)
 		:ok
@@ -141,10 +141,10 @@ defmodule Mqttex.QoS1Sender do
 	in Erlang and Elixir.	
 	"""
 
-	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
+	@spec start(Mqttex.Msg.Publish.t, atom, pid) :: :ok
 	def start(Mqttex.SubscribeMsg[msg_id: id]   = msg, mod, sender), do: start(msg, id, mod, sender)
 	def start(Mqttex.UnSubscribeMsg[msg_id: id] = msg, mod, sender), do: start(msg, id, mod, sender)
-	def start(Mqttex.PublishMsg[msg_id: id]     = msg, mod, sender), do: start(msg, id, mod, sender)
+	def start(%Mqttex.Msg.Publish{msg_id: id}     = msg, mod, sender), do: start(msg, id, mod, sender)
 
 	defp start(msg, id, mod, sender) do
 		receive do
@@ -177,8 +177,8 @@ defmodule Mqttex.QoS1Receiver do
 	This is the receiver part of `At least once` protocol of MQTT.
 	"""
 
-	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
-	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
+	@spec start(Mqttex.Msg.Publish.t, atom, pid) :: :ok
+	def start(%Mqttex.Msg.Publish{} = msg, mod, receiver) do
 		mod.on_message(receiver, msg)
 		send_ack(msg.msg_id, mod, receiver)
 		mod.finish_receiver(receiver, self)
@@ -199,8 +199,8 @@ defmodule Mqttex.QoS2Sender do
 	as `Exactly Once` quality of service. 
 	"""
 
-	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
-	def start(Mqttex.PublishMsg[] = msg, mod, sender) do
+	@spec start(Mqttex.Msg.Publish.t, atom, pid) :: :ok
+	def start(%Mqttex.Msg.Publish{} = msg, mod, sender) do
 		receive do
 			:go -> send_msg(msg, mod, sender, :first)
 		end
@@ -214,10 +214,8 @@ defmodule Mqttex.QoS2Sender do
 	arrives within the timout, the process advances to releasing the message 
 	(see `send_release`).
 	"""
-	def send_msg(Mqttex.PublishMsg[msg_id: msg_id, header: h] = msg, mod, sender, duplicate) do
-		# new_h = h.duplicate(duplicate == :second)
-		new_h = %Mqttex.Msg.FixedHeader{h | duplicate: duplicate == :second}
-		m = msg.header(new_h)
+	def send_msg(%Mqttex.Msg.Publish{msg_id: msg_id} = msg, mod, sender, duplicate) do
+		m = Mqttex.Msg.Publish.duplicate(msg, duplicate == :second)
 		timeout = mod.send_msg(sender, m)
 		receive do
 			%Mqttex.Msg.Simple{msg_type: :pub_rec, msg_id: ^msg_id} -> send_release(msg_id, mod, sender, :first)
@@ -232,7 +230,6 @@ defmodule Mqttex.QoS2Sender do
 	message until a response arrives.
 	"""
 	def send_release(msg_id, mod, sender, duplicate) do
-		# header = Mqttex.FixedHeader[duplicate: duplicate == :second, qos: :at_least_once]
 		header = Mqttex.Msg.fixed_header(:pub_rel, duplicate == :second, :at_least_once, false, 2)
 		m = Mqttex.PubRelMsg[header: header, msg_id: msg_id]
 		timeout = mod.send_release(sender, m)
@@ -252,8 +249,8 @@ defmodule Mqttex.QoS2Receiver do
 
 	@nr_of_timeout 5
 
-	@spec start(Mqttex.PublishMsg.t, atom, pid) :: :ok
-	def start(Mqttex.PublishMsg[] = msg, mod, receiver) do
+	@spec start(Mqttex.Msg.Publish.t, atom, pid) :: :ok
+	def start(%Mqttex.Msg.Publish{} = msg, mod, receiver) do
 #		mod.on_message(receiver, msg)
 		send_received(msg, msg.msg_id, mod, receiver, :first)
 		mod.finish_receiver(receiver, self)
@@ -264,8 +261,8 @@ defmodule Mqttex.QoS2Receiver do
 		timeout = mod.send_received(receiver, received)
 		receive do
 			Mqttex.PubRelMsg[msg_id: ^msg_id]  -> send_complete(msg, msg_id, mod, receiver, :first)
-			Mqttex.PublishMsg[msg_id: ^msg_id] -> send_received(msg, msg_id, mod, receiver, :second)
-			after  timeout                     -> send_received(msg, msg_id, mod, receiver, :second)
+			%Mqttex.Msg.Publish{msg_id: ^msg_id} -> send_received(msg, msg_id, mod, receiver, :second)
+			after timeout                        -> send_received(msg, msg_id, mod, receiver, :second)
 		end
 	end
 

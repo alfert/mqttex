@@ -70,13 +70,12 @@ defmodule Mqttex.Test.SessionAdapter do
 	end
 
 	def publish(session, topic, body, qos) do
-		header = Mqttex.Msg.fixed_header(:publish, false, qos, false, 0)
-		msg = Mqttex.PublishMsg.new([header: header, topic: topic, message: body])
+		msg = Mqttex.Msg.publish(topic, body, qos)
 		publish(session, msg)
 	end
 	
 	
-	def publish(session, Mqttex.PublishMsg[] = msg) do
+	def publish(session, %Mqttex.Msg.Publish{} = msg) do
 		send(session, {:publish, msg})
 	end
 
@@ -140,7 +139,7 @@ defmodule Mqttex.Test.SessionAdapter do
 			{:publish, pub} ->
 				new_sender = Mqttex.ProtocolManager.sender(state.senders, pub, __MODULE__, self)
 				loop(channel, state.update(senders: new_sender))
-			Mqttex.PublishMsg[] = pub ->
+			%Mqttex.Msg.Publish{} = pub ->
 				new_rec = Mqttex.ProtocolManager.receiver(state.receivers, pub, __MODULE__, self)
 				loop(channel, state.update(receivers: new_rec))
 			msg -> 

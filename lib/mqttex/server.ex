@@ -53,7 +53,7 @@ defmodule Mqttex.Server do
 	MQTT message. The functions sends the message asynchronously to the 
 	session and returns immediatly.
 	"""
-	def receive(server, Mqttex.PublishMsg[] = msg), do: do_receive(server, msg)
+	def receive(server, %Mqttex.Msg.Publish{} = msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.SubscribeMsg[] = msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.UnSubscribeMsg[] = msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Simple{} = msg), do: do_receive(server, msg)
@@ -78,8 +78,7 @@ defmodule Mqttex.Server do
 	from the `Topic`.
 	"""	
 	def publish(server, topic, body, qos) do
-		header = Mqttex.Msg.fixed_header(:publish, false, qos, false, 0)
-		msg = Mqttex.PublishMsg.new([header: header, topic: topic, message: body])
+		msg = Mqttex.Msg.publish(topic, body, qos)
 		:gen_server.cast(server, {:publish, msg})
 	end
 
@@ -175,7 +174,7 @@ defmodule Mqttex.Server do
 	########################################################################################
 
 	@doc "Event in state `clean_session` without a reply"
-	def clean_session({:receive, Mqttex.PublishMsg[] = msg}, ConnectionState[connection: con] = state) do
+	def clean_session({:receive, %Mqttex.Msg.Publish{} = msg}, ConnectionState[connection: con] = state) do
 		# initiate a new protocol for receiving a published message
 		# sending to the TopicManager is the task of the on_message callback!!!
 		new_rec = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
@@ -218,7 +217,7 @@ defmodule Mqttex.Server do
 	### All messages coming from the inside and the protocol handling
 	########################################################################################
 	# a lot missing here
-	def clean_session({:publish, Mqttex.PublishMsg[] = msg}, ConnectionState[] = state) do
+	def clean_session({:publish, %Mqttex.Msg.Publish{} = msg}, ConnectionState[] = state) do
 		# publish the message towards the client
 		# sending is delegated to the QoS protocol 
 		new_sender = Mqttex.ProtocolManager.sender(state.senders, msg, __MODULE__, self)

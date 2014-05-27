@@ -84,8 +84,7 @@ defmodule Mqttex.Client do
 	Publishes a message with the given topic and qos.
 	"""
 	def publish(server, topic, message, qos) do
-		header = Mqttex.Msg.fixed_header(:publish, false, qos, false, 0)
-		msg = Mqttex.PublishMsg.new([header: header, topic: topic, message: message])
+		msg = Mqttex.Msg.publish(topic, message, qos)
 		:gen_server.cast(server, {:publish, msg})
 	end
 
@@ -140,7 +139,7 @@ defmodule Mqttex.Client do
 		send(client, msg)
 		{:noreply, state, state.timeout}
 	end
-	def handle_cast({:receive, Mqttex.PublishMsg[] = msg}, state) do 
+	def handle_cast({:receive, %Mqttex.Msg.Publish{} = msg}, state) do 
 		new_receiver = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
 		{:noreply, state.update(receivers: new_receiver), state.timeout}
 	end
@@ -215,7 +214,7 @@ defmodule Mqttex.Client do
 	#### API from the Channels
 	#############################################################################################
 
-	def receive(server, Mqttex.PublishMsg[]= msg), do: do_receive(server, msg)
+	def receive(server, %Mqttex.Msg.Publish{}= msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.PubRelMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Simple{}= msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.PubRecMsg[]= msg), do: do_receive(server, msg)
