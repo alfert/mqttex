@@ -73,6 +73,12 @@ defmodule Mqttex.Msg do
 			new_h = %FixedHeader{h | duplicate: dup}
 			%Publish{m | header: new_h}
 		end
+
+		@doc "Sets the message id"
+		def msg_id(%Publish{} = m, id \\ 0) do
+			%Publish{m | msg_id: id}
+		end
+		
 		
 	end
 	
@@ -82,13 +88,13 @@ defmodule Mqttex.Msg do
 	##    Makes sense, or?
 	##############
 
-	@doc "Creates a new publish message. The message id is not set."
-	def publish(topic, message, qos) do
+	@doc "Creates a new publish message. The message id is not set per default."
+	def publish(topic, message, qos, msg_id \\ 0) do
 		length = size(message) + 
 		         size(topic) + 2 + # with 16 bit size of topic
 		         2 # 16 bit message id
 		h = fixed_header(:publish, false, qos, false, length)
-		%Publish{topic: topic, message: message, header: h}
+		%Publish{topic: topic, message: message, msg_id: msg_id, header: h}
 	end
 
 

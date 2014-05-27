@@ -42,19 +42,21 @@ defmodule Mqttex.ProtocolManager do
 	
 	def sender(PMState[] = state, %Mqttex.Msg.Publish{} = msg, session_mod, session_pid) do
 		msg_id = msg_id(state)
-		new_msg = msg.update([msg_id: msg_id])
+		new_msg = Mqttex.Msg.Publish.msg_id(msg, msg_id)
 		header = msg.header
 		do_send(state, new_msg, msg_id, header.qos, session_mod, session_pid)
 	end
 	def sender(PMState[] = state, Mqttex.SubscribeMsg[] = msg, session_mod, session_pid) do
 		msg_id = msg_id(state)
-		new_msg = msg.update([msg_id: msg_id])
+		raise "Implement Mqttex.Msg.Subscribe.msg_id"
+		new_msg = Mqttex.Msg.Publish.msg_id(msg, msg_id)
 		header = msg.header
 		do_send(state, new_msg, msg_id, header.qos, session_mod, session_pid)
 	end
 	def sender(PMState[] = state, Mqttex.UnSubscribeMsg[] = msg, session_mod, session_pid) do
 		msg_id = msg_id(state)
-		new_msg = msg.update([msg_id: msg_id])
+		raise "Implement Mqttex.Msg.UnSubscribe.msg_id"
+		new_msg = Mqttex.Msg.Publish.msg_id(msg, msg_id)
 		header = msg.header
 		
 		do_send(state, new_msg, msg_id, header.qos, session_mod, session_pid)
