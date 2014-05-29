@@ -8,7 +8,9 @@ defmodule Mqttex.Decoder do
 	@type next_byte_fun :: (() -> {binary, next_byte_fun})
 	@type read_message_fun :: ((pos_integer) -> binary)
 
-	# @type decode(binary, next_byte_fun) :: Mqttex.Msg.Simple.t 
+	@type all_message_types :: Mqttex.Msg.Simple.t | Mqttex.Msg.Publish.t 
+
+	# @type decode(binary, next_byte_fun, read_message_fun) :: all_message_types
 	def decode(msg = <<_m :: size(16)>>, readByte, readMsg) do
 		header = decode_fixheader(msg, readByte)
 		var_m = readMsg.(header.length)
@@ -31,6 +33,8 @@ defmodule Mqttex.Decoder do
 		do: Mqttex.Msg.pub_ack(get_msgid(msg))
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_rec}), 
 		do: Mqttex.Msg.pub_rec(get_msgid(msg))
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_rel}), 
+		do: Mqttex.Msg.pub_rel(get_msgid(msg))
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_comp}), 
 		do: Mqttex.Msg.pub_comp(get_msgid(msg))
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsub_ack}), 

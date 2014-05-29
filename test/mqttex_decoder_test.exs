@@ -4,6 +4,7 @@ defmodule MqttexDecoderTest do
 	messages to send.
 	"""
 	require Lager
+	import Bitwise
 	use ExUnit.Case
 
 
@@ -65,13 +66,31 @@ defmodule MqttexDecoderTest do
 		assert m.message == "hallo"
 		Process.exit(buf_pid, :kill)
 	end
+ 
+	test "simple messages with message id" do
+		garbage = [0x54, 0x43, 0xaf]
 
-	#############################
-	#### Add Logging, system hangs
-	####    Perhaps tracing is better to see the messages flowing around
-	####
-	#############################
+		message_types = %{ pub_ack: 4, pub_rec: 5, pub_rel: 6, pub_comp: 7, unsub_ack: 11}
+		message_types |> Enum.each fn({type, id}) -> 
+			msg_id = :random.uniform(1<<<16) - 1
+			msb = msg_id >>> 8
+			lsb = msg_id &&& 0xff
+			bytes = [msb, lsb]
 
+			# bytes = [0x1f, 0x32] ++ garbage
+			# msg_id = hd(bytes)*256 + hd(tl bytes)
+
+			# hmm, the header must be changed for some message types (qos)
+			header = <<id <<< 4,0x02>>
+			buf_pid = spawn(fn() -> buffer(bytes) end)
+			m = Mqttex.Decoder.decode(header, 
+				fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+			assert %Mqttex.Msg.Simple{} = m  
+			assert m.msg_id == msg_id
+			assert m.msg_type == type
+			Process.exit(buf_pid, :kill)
+		end
+	end
 
 	@doc "Simulates the TCP get functions to read the next byte from a list of bytes."
 	def next_byte([]), do: {nil, nil} 

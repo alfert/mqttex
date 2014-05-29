@@ -13,6 +13,9 @@ defmodule Mqttex.Msg do
 	@doc "Creates a new simple message of type `pub_rec`"
 	def pub_rec(msg_id) when is_integer(msg_id), do: %Simple{msg_type: :pub_rec, msg_id: msg_id}
 
+	@doc "Creates a new simple message of type `pub_rel`"
+	def pub_rel(msg_id) when is_integer(msg_id), do: %Simple{msg_type: :pub_rel, msg_id: msg_id}
+
 	@doc "Creates a new simple message of type `pub_comp`"
 	def pub_comp(msg_id) when is_integer(msg_id), do: %Simple{msg_type: :pub_comp, msg_id: msg_id}
 
