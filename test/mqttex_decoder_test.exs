@@ -39,10 +39,74 @@ defmodule MqttexDecoderTest do
 		end 
 	end
 
+	test "parse a fixed header" do
+		header = <<0x32, 0>>
+		h = Mqttex.Decoder.decode_fixheader(header, fn() -> next_byte([]) end)
+		assert %Mqttex.Msg.FixedHeader{} = h
+		assert h.message_type == :publish
+		assert h.qos == :at_least_once
+		assert h.retain == false
+		assert h.duplicate == false
+	end
+
+	test "publish a message" do
+		# anything after the initial 16 bits of the MQTT message, i.e. the optional
+		# length encodings, the variable header and the 
+		bytes = [0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x0a, "h", "a", "l", "l", "o"]
+		# header contains the fixed header byte and the initial length byte
+		# the call of length(bytes) works only if bytes is shorter then 128 bytes long
+		header = <<0x32, length(bytes)>> 
+		buf_pid = spawn(fn() -> buffer(bytes) end)
+		m = Mqttex.Decoder.decode(header, 
+			fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+		assert %Mqttex.Msg.Publish{} = m
+		assert m.topic == "a/b"
+		assert m.msg_id == 10
+		assert m.message == "hallo"
+		Process.exit(buf_pid, :kill)
+	end
+
+	#############################
+	#### Add Logging, system hangs
+	####    Perhaps tracing is better to see the messages flowing around
+	####
+	#############################
+
+
 	@doc "Simulates the TCP get functions to read the next byte from a list of bytes."
 	def next_byte([]), do: {nil, nil} 
 	def next_byte([h | t]) do
 		{<<h>>, fn() -> (next_byte(t)) end}
+	end
+	# this instance runs with the buffer loop.
+	def next_byte(pid) when is_pid(pid) do
+		send(pid, {:byte, self})
+		receive do
+			byte -> {byte, fn() -> next_byte(pid) end}
+		end
+	end
+
+	@doc "Simulates the TCP get functions to read `n` bytes from a list of bytes."
+	def read_bytes(pid, n) when is_pid(pid) do
+		send(pid, {:msg, n, self})
+		receive do
+			bytes -> bytes
+		end
+	end
+	def read_bytes([], n), do: <<>>
+	def read_bytes(bs, n), do: IO.iodata_to_binary(Enum.take(bs, n))
+	
+	@doc "A process that holds a buffer full of bytes and iterates over them."
+	def buffer([]), do: :ok
+	def buffer(bytes) do
+		receive do
+			{:byte, pid} -> 
+				send(pid, <<hd bytes>>) 
+				buffer(tl bytes)
+			{:msg, n, pid} ->
+				send(pid, IO.iodata_to_binary(Enum.take(bytes, n)))
+				buffer(Enum.drop(bytes, n))
+		end
 	end
 	
 	test "Read UTF8" do

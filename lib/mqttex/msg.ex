@@ -79,6 +79,11 @@ defmodule Mqttex.Msg do
 			%Publish{m | msg_id: id}
 		end
 		
+		@doc "Set the retain flag to `retain` in the message"
+		def retain(%Publish{header: h} = m, retain \\ true) do
+			new_h = %FixedHeader{h | retain: retain}
+			%Publish{m | header: new_h}
+		end
 		
 	end
 	
@@ -97,6 +102,6 @@ defmodule Mqttex.Msg do
 		%Publish{topic: topic, message: message, msg_id: msg_id, header: h}
 	end
 
-
+	
 
 end

@@ -12,7 +12,7 @@ defmodule Mqttex.Decoder do
 	def decode(msg = <<_m :: size(16)>>, readByte, readMsg) do
 		header = decode_fixheader(msg, readByte)
 		var_m = readMsg.(header.length)
-		# decode_message(var_m, header)
+		decode_message(var_m, header)
 	end
 
 	@spec decode_fixheader(binary, next_byte_fun ) :: Mqttex.Msg.FixedHeader.t
@@ -20,17 +20,43 @@ defmodule Mqttex.Decoder do
 						   retain :: size(1), len :: size(8)>>, readByte) do
 		Mqttex.Msg.fixed_header(binary_to_msg_type(type), 
 			(dup == 1), binary_to_qos(qos),(retain == 1),
-			binary_to_length(len, readByte))
+			binary_to_length(<<len>>, readByte))
 	end
 
-	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :publish}) do
-		decode_publish(msg, h)
-	end
-	
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :publish}), do: decode_publish(msg, h)
+	def decode_message(<<>>, %Mqttex.Msg.FixedHeader{message_type: :ping_req}), do: Mqttex.Msg.ping_req()
+	def decode_message(<<>>, %Mqttex.Msg.FixedHeader{message_type: :ping_resp}), do: Mqttex.Msg.ping_resp()
+	def decode_message(<<>>, %Mqttex.Msg.FixedHeader{message_type: :disconnect}), do: Mqttex.Msg.disconnect()
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_ack}), 
+		do: Mqttex.Msg.pub_ack(get_msgid(msg))
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_rec}), 
+		do: Mqttex.Msg.pub_rec(get_msgid(msg))
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_comp}), 
+		do: Mqttex.Msg.pub_comp(get_msgid(msg))
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsub_ack}), 
+		do: Mqttex.Msg.unsub_ack(get_msgid(msg))
+
+
+	@spec decode_publish(binary, Mqttex.Msg.FixedHeader.t) :: Mqttex.Msg.Publish.t
 	def decode_publish(msg, h) do
-		{topic, payload } = utf8(msg)
+		{topic, m1} = utf8(msg)
+		# in m1 is the message id if qos = 1 or 2
+		{msg_id, payload} = case h.qos do
+			:fire_and_forget -> {0, m1}
+			_   -> 
+				<<id :: [integer, unsigned, size(16)], content :: binary>> = m1
+				{id, content}
+		end
+		## create a publish message 
+		p = Mqttex.Msg.publish(topic, payload, h.qos)
+		%Mqttex.Msg.Publish{ p | header: h, msg_id: msg_id}
 	end
-	
+
+
+	@doc "Expects a 16 bit binary and returns its value as integer"
+	@spec get_msgid(binary) :: integer	
+	def get_msgid(<<id :: [integer, unsigned, size(16)]>>), do: id	
+
 	@doc """
 	Decodes an utf8 string (in the header) of a MQTT message. Returns the string and the
 	remaining input message.
