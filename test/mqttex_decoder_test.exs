@@ -125,6 +125,22 @@ defmodule MqttexDecoderTest do
 		Process.exit(buf_pid, :kill)
 	end
 
+	test "sub_ack message" do
+		# anything after the initial 16 bits of the MQTT message, i.e. the optional
+		# length encodings, the variable header and the payload
+		bytes = [0x00, 0x0c, 0x00, 0x02]
+		# header contains the fix6ed header byte and the initial length byte
+		# the call of length(bytes) works only if bytes is shorter then 128 bytes long
+		header = <<0x90, length(bytes)>> 
+		buf_pid = spawn(fn() -> buffer(bytes) end)
+		m = Mqttex.Decoder.decode(header, 
+			fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+		assert %Mqttex.Msg.SubAck{} = m
+		assert m.msg_id == 12
+		assert m.granted_qos == [:fire_and_forget, :exactly_once]
+		Process.exit(buf_pid, :kill)
+	end
+
 	@doc "Simulates the TCP get functions to read the next byte from a list of bytes."
 	def next_byte([]), do: {nil, nil} 
 	def next_byte([h | t]) do

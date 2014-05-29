@@ -8,7 +8,7 @@ defmodule Mqttex.Decoder do
 	@type next_byte_fun :: (() -> {binary, next_byte_fun})
 	@type read_message_fun :: ((pos_integer) -> binary)
 
-	@type all_message_types :: Mqttex.Msg.Simple.t | Mqttex.Msg.Publish.t 
+	@type all_message_types :: Mqttex.Msg.Simple.t | Mqttex.Msg.Publish.t | Mqttex.Msg.SubAck.t | Mqttex.Mst.Unsubscibe.t
 
 	# @type decode(binary, next_byte_fun, read_message_fun) :: all_message_types
 	def decode(msg = <<_m :: size(16)>>, readByte, readMsg) do
@@ -42,7 +42,8 @@ defmodule Mqttex.Decoder do
 		do: Mqttex.Msg.pub_comp(get_msgid(msg))
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsub_ack}), 
 		do: Mqttex.Msg.unsub_ack(get_msgid(msg))
-	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsubscribe}), do: decode_unsubscribe(msg, h)
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsubscribe}), do: decode_unsubscribe(msg)
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :sub_ack}), do: decode_sub_ack(msg)
 	
 
 
@@ -61,9 +62,20 @@ defmodule Mqttex.Decoder do
 		%Mqttex.Msg.Publish{ p | header: h, msg_id: msg_id}
 	end
 
-	def decode_unsubscribe(<<msg_id :: [integer, unsigned, size(16)], content :: binary>>, h) do
+	def decode_unsubscribe(<<msg_id :: [integer, unsigned, size(16)], content :: binary>>) do
 		topics = utf8_list(content)
 		Mqttex.Msg.unsubscribe(topics, msg_id)
+	end
+
+	def decode_sub_ack(<<msg_id :: [integer, unsigned, size(16)], content :: binary>>) do
+		granted_qos = qos_list(content)
+		Mqttex.Msg.sub_ack(granted_qos, msg_id)
+	end
+			
+	@doc "Decodes a binary as list of qos entries"
+	def qos_list(<<>>, acc), do: Enum.reverse acc
+	def qos_list(<<q :: [size(8)], rest :: binary>>, acc \\ []) do
+		qos_list(rest, [binary_to_qos(q) | acc])
 	end
 	
 
@@ -131,6 +143,4 @@ defmodule Mqttex.Decoder do
 	def binary_to_msg_type(0), do: :reserved
 	def binary_to_msg_type(15), do: :reserved
 	
-
-
 end
