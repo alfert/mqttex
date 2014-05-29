@@ -42,6 +42,8 @@ defmodule Mqttex.Decoder do
 		do: Mqttex.Msg.pub_comp(get_msgid(msg))
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsub_ack}), 
 		do: Mqttex.Msg.unsub_ack(get_msgid(msg))
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsubscribe}), do: decode_unsubscribe(msg, h)
+	
 
 
 	@spec decode_publish(binary, Mqttex.Msg.FixedHeader.t) :: Mqttex.Msg.Publish.t
@@ -59,10 +61,26 @@ defmodule Mqttex.Decoder do
 		%Mqttex.Msg.Publish{ p | header: h, msg_id: msg_id}
 	end
 
+	def decode_unsubscribe(<<msg_id :: [integer, unsigned, size(16)], content :: binary>>, h) do
+		topics = utf8_list(content)
+		Mqttex.Msg.unsubscribe(topics, msg_id)
+	end
+	
+
 
 	@doc "Expects a 16 bit binary and returns its value as integer"
 	@spec get_msgid(binary) :: integer	
 	def get_msgid(<<id :: [integer, unsigned, size(16)]>>), do: id	
+
+	@doc "Decodes an entire list of utf8 encodes strings"
+	@spec utf8_list(binary, [binary]) :: [binary]
+	def utf8_list(<<>>, acc), do: Enum.reverse acc
+	def utf8_list(content, acc \\ []) do
+		{t, rest} = utf8(content)
+		utf8_list(rest, [t | acc])
+	end
+	
+
 
 	@doc """
 	Decodes an utf8 string (in the header) of a MQTT message. Returns the string and the

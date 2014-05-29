@@ -105,6 +105,33 @@ defmodule Mqttex.Msg do
 		%Publish{topic: topic, message: message, msg_id: msg_id, header: h}
 	end
 
+
+	defmodule Unsubscribe do
+		defstruct topics: [] :: [binary],
+			msg_id: 0 :: pos_integer,
+			header: %FixedHeader{} :: Mqttex.Msg.FixedHeader 
+
+		@doc "Sets the duplicate flag to `dup` in the message"
+		def duplicate(%Publish{header: h} = m, dup \\ true) do
+			new_h = %FixedHeader{h | duplicate: dup}
+			%Publish{m | header: new_h}
+		end
+
+		@doc "Sets the message id"
+		def msg_id(%Publish{} = m, id \\ 0) do
+			%Publish{m | msg_id: id}
+		end
+		
+	end
+	
+	@doc "Creates a new unsubscribe message. The message id is not set per default"
+	@spec unsubscribe([binary], pos_integer) :: Unsubscribe.t
+	def unsubscribe(topics, msg_id \\ 0) do
+		length = 2 + #  16 bit message id
+			(topics |> Enum.map(fn(t) -> size(t) + 2 end) |> Enum.sum)
+		h = fixed_header(:unsubscribe, false, :at_least_once, false, length)
+		%Unsubscribe{topics: topics, msg_id: msg_id, header: h}
+	end
 	
 
 end

@@ -52,8 +52,8 @@ defmodule MqttexDecoderTest do
 
 	test "publish a message" do
 		# anything after the initial 16 bits of the MQTT message, i.e. the optional
-		# length encodings, the variable header and the 
-		bytes = [0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x0a, "h", "a", "l", "l", "o"]
+		# length encodings, the variable header and the payload
+		bytes = [0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x0a, "h", "e", "l", "l", "o"]
 		# header contains the fixed header byte and the initial length byte
 		# the call of length(bytes) works only if bytes is shorter then 128 bytes long
 		header = <<0x32, length(bytes)>> 
@@ -63,7 +63,7 @@ defmodule MqttexDecoderTest do
 		assert %Mqttex.Msg.Publish{} = m
 		assert m.topic == "a/b"
 		assert m.msg_id == 10
-		assert m.message == "hallo"
+		assert m.message == "hello"
 		Process.exit(buf_pid, :kill)
 	end
  
@@ -106,6 +106,23 @@ defmodule MqttexDecoderTest do
 			assert m.msg_type == type
 			Process.exit(buf_pid, :kill)
 		end
+	end
+
+	test "unsubscribe message" do
+		# anything after the initial 16 bits of the MQTT message, i.e. the optional
+		# length encodings, the variable header and the payload
+		bytes = [0x00, 0x0b, 0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x03, 0x63, 0x2f, 0x64]
+		# header contains the fix6ed header byte and the initial length byte
+		# the call of length(bytes) works only if bytes is shorter then 128 bytes long
+		header = <<0xa2, length(bytes)>> 
+		buf_pid = spawn(fn() -> buffer(bytes) end)
+		m = Mqttex.Decoder.decode(header, 
+			fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+		assert %Mqttex.Msg.Unsubscribe{} = m
+		assert m.msg_id == 11
+		assert m.header.qos == :at_least_once
+		assert m.topics == ["a/b", "c/d"]
+		Process.exit(buf_pid, :kill)
 	end
 
 	@doc "Simulates the TCP get functions to read the next byte from a list of bytes."
