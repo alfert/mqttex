@@ -112,14 +112,14 @@ defmodule Mqttex.Msg do
 			header: %FixedHeader{} :: Mqttex.Msg.FixedHeader 
 
 		@doc "Sets the duplicate flag to `dup` in the message"
-		def duplicate(%Publish{header: h} = m, dup \\ true) do
+		def duplicate(%Unsubscribe{header: h} = m, dup \\ true) do
 			new_h = %FixedHeader{h | duplicate: dup}
-			%Publish{m | header: new_h}
+			%Unsubscribe{m | header: new_h}
 		end
 
 		@doc "Sets the message id"
-		def msg_id(%Publish{} = m, id \\ 0) do
-			%Publish{m | msg_id: id}
+		def msg_id(%Unsubscribe{} = m, id \\ 0) do
+			%Unsubscribe{m | msg_id: id}
 		end
 		
 	end
@@ -131,6 +131,27 @@ defmodule Mqttex.Msg do
 			(topics |> Enum.map(fn(t) -> size(t) + 2 end) |> Enum.sum)
 		h = fixed_header(:unsubscribe, false, :at_least_once, false, length)
 		%Unsubscribe{topics: topics, msg_id: msg_id, header: h}
+	end
+	
+	defmodule SubAck do
+		defstruct msg_id: 0 :: pos_integer, 
+			granted_qos: [] :: [pos_integer],
+			header: %FixedHeader{} :: FixedHeader.t
+
+		@doc "Sets the message id"
+		def msg_id(%SubAck{} = m, id \\ 0) do
+			%SubAck{m | msg_id: id}
+		end
+	
+	end
+
+	@doc "Creates a new sub_ack message. The message id is not set per default"
+	@spec sub_ack([Mqttex.qos_type], pos_integer) :: SubAck.t
+	def sub_ack(granted_qos, msg_id \\ 0) do
+		length = 2 + # 16 bit message id
+			length(granted_qos) # number of bytes per qos
+		h = fixed_header(:sub_ack, false, :fire_and_forget, false, length)
+		%SubAck{msg_id: msg_id, granted_qos: granted_qos, header: h }
 	end
 	
 

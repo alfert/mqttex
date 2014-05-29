@@ -73,7 +73,7 @@ defmodule Mqttex do
 	defrecord SubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: [{"", :fire_and_forget}]
 
 	# The Suback message
-	defrecord SubAckMsg, msg_id: 0, granted_qos: []
+	# defrecord SubAckMsg, msg_id: 0, granted_qos: []
 
 	# The UnSubscribe message
 	# defrecord UnSubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: []
