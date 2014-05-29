@@ -6,7 +6,7 @@ defmodule MqttexQosTest do
 		body = "FaF Message"
 		msg = makePublishMsg("Topic FaF", body)
 		setupChannels(msg)
-		assert_receive Mqttex.PublishMsg[message: ^body]
+		assert_receive %Mqttex.Msg.Publish{message: ^body}
 	end
 
 	
@@ -16,7 +16,7 @@ defmodule MqttexQosTest do
 
 		receive do
 			%Mqttex.Msg.Simple{msg_type: :pub_ack} = ack -> assert ack.msg_id == msg.msg_id
-			Mqttex.PublishMsg[] = received -> 
+			%Mqttex.Msg.Publish{} = received -> 
 				Lager.debug "Yeah, we received this message: #{inspect received}"
 				assert received.msg_id == msg.msg_id
 			any -> flunk "Got invalid #{inspect any}"
@@ -30,7 +30,7 @@ defmodule MqttexQosTest do
 
 		receive do
 			%Mqttex.Msg.Simple{msg_type: :pub_comp} = ack -> assert ack.msg_id == msg.msg_id
-			Mqttex.PublishMsg[] = received -> 
+			%Mqttex.Msg.Publish{} = received -> 
 				Lager.debug "Yeah, we received this message: #{inspect received}"
 				assert received.msg_id == msg.msg_id
 			any -> flunk "Got invalid #{inspect any}"
@@ -43,7 +43,7 @@ defmodule MqttexQosTest do
 		msg = makePublishMsg("Topic ALO", "Lossy ALO Message", :at_least_once, msg_id)
 		setupChannels(msg, 70)
 
-		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = _received, 1000
+		assert_receive %Mqttex.Msg.Publish{msg_id: ^msg_id} = _received, 1000
 		# Lager.debug "Yeah, we received this message: #{inspect received}"
 	end
 
@@ -52,14 +52,12 @@ defmodule MqttexQosTest do
 		msg = makePublishMsg("Topic EO", "Lossy EO Message", :exactly_once, msg_id)
 		setupChannels(msg, 50)
 
-		assert_receive Mqttex.PublishMsg[msg_id: ^msg_id] = _received, 2_000
+		assert_receive %Mqttex.Msg.Publish{msg_id: ^msg_id} = _received, 2_000
 		# Lager.debug "Yeah, we received this message: #{inspect received}"
 	end
 
 	def makePublishMsg(topic, content, qos \\ :fire_and_forget, id \\ 0 ) do
-		#header= Mqttex.FixedHeader.new([qos: qos, message_type: :publish])
-		header = Mqttex.Msg.fixed_header(:publish, false, qos, false, 0)
-		Mqttex.PublishMsg.new([header: header, topic: topic, message: content, msg_id: id ])
+		Mqttex.Msg.publish(topic, content, qos, id)
 	end
 	
 	@doc """
@@ -129,7 +127,7 @@ defmodule MqttextSimpleSenderAdapter do
 	
 	def receiver_loop(state) do
 		new_state = receive do
-			Mqttex.PublishMsg[] = msg -> 
+			%Mqttex.Msg.Publish{} = msg -> 
 				# we need a new qos protocol only, if does not yet exist. 
 				# otherwise reuse it, we are in an ongoing protocol, PublishMsg
 				# may be resent several times!
@@ -156,7 +154,7 @@ defmodule MqttextSimpleSenderAdapter do
 	
 	
 	@doc "Publishes a message and returns the QoS protocol process"
-	def publish(adapter_pid, Mqttex.PublishMsg[header: header] = msg) do
+	def publish(adapter_pid, %Mqttex.Msg.Publish{header: header} = msg) do
 		qosProtocol = 
 			case header.qos do
 				:fire_and_forget -> spawn_link(Mqttex.QoS0Sender, :start, 
@@ -170,7 +168,7 @@ defmodule MqttextSimpleSenderAdapter do
 		qosProtocol
 	end
 	
-	def start_receiver_qos(Mqttex.PublishMsg[header: header] = msg) do
+	def start_receiver_qos(%Mqttex.Msg.Publish{header: header} = msg) do
 		qosProtocol = 
 			case header.qos do
 				:fire_and_forget -> spawn_link(Mqttex.QoS0Receiver, :start, 

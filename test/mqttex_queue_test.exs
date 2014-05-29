@@ -26,7 +26,7 @@ defmodule MqttexQueueTest do
 		msg = "Initial Message FaF"
 		Mqttex.Test.SessionAdapter.publish(q, "FAF-Topic", msg, :fire_and_forget)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
+		assert_receive %Mqttex.Msg.Publish{message: ^msg}, 1_000
 	end
 
 	test "Publish ALO via Queue" do
@@ -34,7 +34,7 @@ defmodule MqttexQueueTest do
 		msg = "Initial Message ALO"
 		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg, :at_least_once)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
+		assert_receive %Mqttex.Msg.Publish{message: ^msg}, 1_000
 	end
 
 	test "Publish EO via Queue" do
@@ -42,7 +42,7 @@ defmodule MqttexQueueTest do
 		msg = "Initial Message EO"
 		Mqttex.Test.SessionAdapter.publish(q, "EO-Topic", msg, :exactly_once)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
+		assert_receive %Mqttex.Msg.Publish{message: ^msg}, 1_000
 	end
 
 	test "Publish ALO via Lossy Queue" do
@@ -50,7 +50,7 @@ defmodule MqttexQueueTest do
 		msg = "Lossy Message ALO"
 		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg, :at_least_once)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg], 1_000
+		assert_receive %Mqttex.Msg.Publish{message: ^msg}, 1_000
 	end
 
 	test "Publish EO via Lossy Queue" do
@@ -58,18 +58,18 @@ defmodule MqttexQueueTest do
 		msg = "Lossy Message EO"
 		Mqttex.Test.SessionAdapter.publish(q, "EO-Topic", msg, :exactly_once)
 
-		assert_receive Mqttex.PublishMsg[message: ^msg], 1_100
+		assert_receive %Mqttex.Msg.Publish{message: ^msg}, 1_100
 	end
 
 	test "Publish two ALOs" do
 		{q, _qIn} = setupQueue()
 		msg1 = "Initial Message ALO"
 		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg1, :at_least_once)
-		assert_receive Mqttex.PublishMsg[message: ^msg1], 1_000
+		assert_receive %Mqttex.Msg.Publish{message: ^msg1}, 1_000
 
 		msg2 = "2nd Message ALO"
 		Mqttex.Test.SessionAdapter.publish(q, "ALO-Topic", msg2, :at_least_once)
-		assert_receive Mqttex.PublishMsg[message: ^msg2], 1_000
+		assert_receive %Mqttex.Msg.Publish{message: ^msg2}, 1_000
 	end
 
 
@@ -200,7 +200,7 @@ defmodule MqttexQueueTest do
 	def slurp_all([m | tail], found \\ HashDict.new, timeout \\ 5_000)
 		when is_binary(m) do
 		receive do
-			Mqttex.PublishMsg[message: ^m] -> # when m == msg -> 
+			%Mqttex.Msg.Publish{message: ^m} -> # when m == msg -> 
 				Lager.debug("Gotcha: got #{m}")
 				slurp_all(tail, Dict.update(found, m, 1, &(&1 + 1)), timeout)
 			after timeout -> 
@@ -218,7 +218,7 @@ defmodule MqttexQueueTest do
 	"""
 	def slurp(msgs \\ Map.new) do
 		receive do
-			Mqttex.PublishMsg[message: m] ->	
+			%Mqttex.Msg.Publish{message: m} ->	
 				slurp(Dict.update(msgs, m, 1, &(&1 + 1)))
 			:done -> msgs
 			any -> Lager.info("slurp got any = #{inspect any}")

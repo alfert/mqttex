@@ -7,7 +7,7 @@ defmodule MqttexClientTest do
 		body = "Message"
 		Mqttex.Client.publish(client, "topic", body, :fire_and_forget)
 
-		assert_receive (Mqttex.PublishMsg[message: ^body])
+		assert_receive (%Mqttex.Msg.Publish{message: ^body})
 	end
 
 	test "Connect a client and send ALO" do
@@ -15,7 +15,7 @@ defmodule MqttexClientTest do
 		body = "ALO Message"
 		Mqttex.Client.publish(client, "topic", body, :at_least_once)
 
-		assert_receive (Mqttex.PublishMsg[message: ^body])
+		assert_receive (%Mqttex.Msg.Publish{message: ^body})
 	end
 
 	test "Connect a client and send EO" do
@@ -23,7 +23,7 @@ defmodule MqttexClientTest do
 		body = "ALO Message"
 		Mqttex.Client.publish(client, "topic", body, :exactly_once)
 
-		assert_receive (Mqttex.PublishMsg[message: ^body])
+		assert_receive (%Mqttex.Msg.Publish{message: ^body})
 	end
 
 
@@ -32,7 +32,7 @@ defmodule MqttexClientTest do
 		body = "FaF Message"
 		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :fire_and_forget)
 
-		assert_receive (Mqttex.PublishMsg[message: ^body])
+		assert_receive (%Mqttex.Msg.Publish{message: ^body})
 	end
 
 	test "Receive a published Message (ALO)" do
@@ -40,7 +40,7 @@ defmodule MqttexClientTest do
 		body = "ALO Message"
 		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :at_least_once)
 
-		assert_receive (Mqttex.PublishMsg[message: ^body])
+		assert_receive (%Mqttex.Msg.Publish{message: ^body})
 	end
 
 	test "Receive a published Message (EO)" do
@@ -48,7 +48,7 @@ defmodule MqttexClientTest do
 		body = "ALO Message"
 		Mqttex.Test.SessionAdapter.publish(server, "topic", body, :exactly_once)
 
-		assert_receive (Mqttex.PublishMsg[message: ^body])
+		assert_receive (%Mqttex.Msg.Publish{message: ^body})
 	end
 
 	@doc """
