@@ -77,11 +77,9 @@ defmodule MqttexDecoderTest do
 			lsb = msg_id &&& 0xff
 			bytes = [msb, lsb]
 
-			# bytes = [0x1f, 0x32] ++ garbage
-			# msg_id = hd(bytes)*256 + hd(tl bytes)
-
 			# hmm, the header must be changed for some message types (qos)
-			header = <<id <<< 4,0x02>>
+			qos = 1 <<< 1 # qos = at least once, require for pub_rel
+			header = <<(id <<< 4) + qos,0x02>>
 			buf_pid = spawn(fn() -> buffer(bytes) end)
 			m = Mqttex.Decoder.decode(header, 
 				fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
