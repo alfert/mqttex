@@ -54,7 +54,7 @@ defmodule MqttexQueueTest do
 	end
 
 	test "Publish EO via Lossy Queue" do
-		{q, _qIn} = setupQueue(50)
+		{q, _qIn} = setupQueue(5)
 		msg = "Lossy Message EO"
 		Mqttex.Test.SessionAdapter.publish(q, "EO-Topic", msg, :exactly_once)
 
@@ -85,13 +85,13 @@ defmodule MqttexQueueTest do
 	end
 
 	test "Many EO messages" do
-		{q, _qIn} = setupQueue(0)
+		{q, _qIn} = setupQueue()
 		message_count = 100
 		messages = generateMessages(message_count)
 		# Lager.debug "messages are: #{inspect messages}"
 
 		bulk_send(messages, q, :exactly_once, "EO-Topic")
-		result = slurp()
+		result = slurp_all messages
 		Lager.debug "Slurp result: #{inspect result}"
 
 		Lager.info "Stats for many EO with good queue"
@@ -116,7 +116,7 @@ defmodule MqttexQueueTest do
 		# {:ok, pid} = 
 		# Mqttex.Test.MsgStat.start_link()
 
-		{q, _qIn} = setupQueue(25)
+		{q, _qIn} = setupQueue(5)
 		message_count = 100
 		messages = generateMessages(message_count)
 		# Lager.debug "messages are: #{inspect messages}"
@@ -209,7 +209,7 @@ defmodule MqttexQueueTest do
 		end
 	end
 	def slurp_all([], found, _timeout), do: slurp(found)
-	def slurp_all(%Stream.Lazy{} = stream, found, timeout) do
+	def slurp_all(%Stream{} = stream, found, timeout) do
 		slurp_all(Enum.to_list(stream), found, timeout)
 	end
 
