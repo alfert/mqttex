@@ -75,7 +75,7 @@ defmodule MqttexDecoderTest do
 			msg_id = :random.uniform(1<<<16) - 1
 			msb = msg_id >>> 8
 			lsb = msg_id &&& 0xff
-			bytes = [msb, lsb]
+			bytes = [msb, lsb] ++ garbage
 
 			# hmm, the header must be changed for some message types (qos)
 			qos = 1 <<< 1 # qos = at least once, require for pub_rel
@@ -85,6 +85,24 @@ defmodule MqttexDecoderTest do
 				fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
 			assert %Mqttex.Msg.Simple{} = m  
 			assert m.msg_id == msg_id
+			assert m.msg_type == type
+			Process.exit(buf_pid, :kill)
+		end
+	end
+
+	test "simple messages without message id" do
+		garbage = [0x54, 0x43, 0xaf]
+
+		message_types = %{ ping_req: 12, ping_resp: 13, disconnect: 14}
+		message_types |> Enum.each fn({type, id}) -> 
+			bytes = [] ++ garbage
+			# hmm, the header must be changed for some message types (qos)
+			qos = 1 <<< 1 # qos = at least once, require for pub_rel
+			header = <<(id <<< 4) + qos,0x00>>
+			buf_pid = spawn(fn() -> buffer(bytes) end)
+			m = Mqttex.Decoder.decode(header, 
+				fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+			assert %Mqttex.Msg.Simple{} = m  
 			assert m.msg_type == type
 			Process.exit(buf_pid, :kill)
 		end

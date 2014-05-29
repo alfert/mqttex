@@ -26,9 +26,12 @@ defmodule Mqttex.Decoder do
 	end
 
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :publish}), do: decode_publish(msg, h)
-	def decode_message(<<>>, %Mqttex.Msg.FixedHeader{message_type: :ping_req}), do: Mqttex.Msg.ping_req()
-	def decode_message(<<>>, %Mqttex.Msg.FixedHeader{message_type: :ping_resp}), do: Mqttex.Msg.ping_resp()
-	def decode_message(<<>>, %Mqttex.Msg.FixedHeader{message_type: :disconnect}), do: Mqttex.Msg.disconnect()
+	def decode_message(<<>>, %Mqttex.Msg.FixedHeader{message_type: :ping_req, length: 0}), 
+		do: Mqttex.Msg.ping_req()
+	def decode_message(<<>>, %Mqttex.Msg.FixedHeader{message_type: :ping_resp, length: 0}), 
+		do: Mqttex.Msg.ping_resp()
+	def decode_message(<<>>, %Mqttex.Msg.FixedHeader{message_type: :disconnect, length: 0}), 
+		do: Mqttex.Msg.disconnect()
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_ack}), 
 		do: Mqttex.Msg.pub_ack(get_msgid(msg))
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_rec}), 
