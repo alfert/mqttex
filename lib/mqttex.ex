@@ -68,31 +68,7 @@ defmodule Mqttex do
 
 	# The Connection message
 	defrecord ConnectionMsg, header: Mqttex.Msg.fixed_header(), connection: Connection.new
-
-	# The return code for a connection acknowledgement
-	# defrecord ConnAckMsg, status: :ok
-
-	# The publish message
-	# defrecord PublishMsg, header: Mqttex.Msg.fixed_header(), topic: "", msg_id: 0, message: ""
-
-
-
-	# TODO:
-	# Check, if it is a good idea to summarize several messages of the same kind
-	# to one struct, e.g. all those with have only the msg_id as value (=> all kinds 
-	# of ack-messages) or even only the status flag (ping, conn, disconn).
-	# This approach will reduce the number of struct modules and in the best case also 
-	# should reduce the number of lines / complexity in the functional modules.
 	
-	# The pubrec message
-	# defrecord PubRecMsg, msg_id: 0
-
-	# The pubrel message
-	defrecord PubRelMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0
-
-	# The pubcomp message
-	# defrecord PubCompMsg, msg_id: 0
-
 	# The Subscribe message
 	defrecord SubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: [{"", :fire_and_forget}]
 
@@ -102,15 +78,4 @@ defmodule Mqttex do
 	# The UnSubscribe message
 	defrecord UnSubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: []
 
-	# The UnSubAck message
-	#defrecord UnSubAckMsg, msg_id: 0
-
-	# The ping request message (status is only a field to have field, has no semantics)
-	# defrecord PingReqMsg, status: :ok
-
-	# The ping response message (status is only a field to have field, has no semantics)
-	# defrecord PingRespMsg, status: :ok
-
-	# The disconnect message (status is only a field to have field, has no semantics)
-	# defrecord DisconnectMsg, status: :ok
 end
