@@ -76,6 +76,6 @@ defmodule Mqttex do
 	defrecord SubAckMsg, msg_id: 0, granted_qos: []
 
 	# The UnSubscribe message
-	defrecord UnSubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: []
+	# defrecord UnSubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: []
 
 end

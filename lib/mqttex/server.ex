@@ -55,7 +55,7 @@ defmodule Mqttex.Server do
 	"""
 	def receive(server, %Mqttex.Msg.Publish{} = msg), do: do_receive(server, msg)
 	def receive(server, Mqttex.SubscribeMsg[] = msg), do: do_receive(server, msg)
-	def receive(server, Mqttex.UnSubscribeMsg[] = msg), do: do_receive(server, msg)
+	def receive(server, %Mqttex.Msg.Unsubscribe{} = msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Simple{} = msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.PingReqMsg[] = msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.DisconnectMsg[] = msg), do: do_receive(server, msg)
@@ -200,7 +200,7 @@ defmodule Mqttex.Server do
 		new_state = state
 		{:noreply, new_state, new_state.connection.keep_alive_server}
 	end
-	def clean_session({:receive, Mqttex.UnSubscribeMsg[] = topics}, ConnectionState[]=state) do
+	def clean_session({:receive, %Mqttex.Msg.Unsubscribe{} = topics}, ConnectionState[]=state) do
 		# unsubscribe to topics at the subscription server
 		#   -> the server drops all existing topics 
 		

@@ -5,7 +5,7 @@ defmodule Mqttex.SenderBehaviour do
 
 	use Behaviour
 
-	@type message_type :: Mqttex.Msg.Publish.t | Mqttex.SubscribeMsg.t | Mqttex.UnSubscribeMsg.t
+	@type message_type :: Mqttex.Msg.Publish.t | Mqttex.SubscribeMsg.t | Mqttex.Msg.Unsubscribe.t
 
 	@doc """
 	Sends a message and returns the current timeout for an answer in milliseconds. 
@@ -143,7 +143,7 @@ defmodule Mqttex.QoS1Sender do
 
 	@spec start(Mqttex.Msg.Publish.t, atom, pid) :: :ok
 	def start(Mqttex.SubscribeMsg[msg_id: id]   = msg, mod, sender), do: start(msg, id, mod, sender)
-	def start(Mqttex.UnSubscribeMsg[msg_id: id] = msg, mod, sender), do: start(msg, id, mod, sender)
+	def start(%Mqttex.Msg.Unsubscribe{msg_id: id} = msg, mod, sender), do: start(msg, id, mod, sender)
 	def start(%Mqttex.Msg.Publish{msg_id: id}     = msg, mod, sender), do: start(msg, id, mod, sender)
 
 	defp start(msg, id, mod, sender) do
