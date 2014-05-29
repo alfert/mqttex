@@ -248,7 +248,7 @@ defmodule MqttextSimpleReceiverQueue do
 	def wait_for_release(receiver_pid, sender_pid) do
 		Lager.debug "#{__MODULE__}.wait for release"
 		receive do
-			Mqttex.PubRelMsg[] = msg -> 
+			%Mqttex.Msg.Simple{msg_type: :pub_rel} = msg -> 
 				Lager.debug "Got Release msg #{inspect msg}"
 				send(receiver_pid, msg)
 			any -> Lager.warning("#{__MODULE__}.wait_for_release got bizarre msg #{inspect any} -> recurse")

@@ -19,13 +19,13 @@ defmodule Mqttex.SenderBehaviour do
 
 	The first parameter is either a `pid` or an named process references for a genserver.
 	"""
-	defcallback send_complete(term, Mqttex.PubCompMsg.t) :: :ok
+	defcallback send_complete(term, Mqttex.Msg.Simple.t) :: :ok
 
 	@doc """
 	Sends a release message and returns the current timeout for an answer in milliseconds. 
 	The first parameter is either a `pid` or an named process references for a genserver.
 	"""
-	defcallback send_release(term, Mqttex.PubRelMsg.t) :: integer
+	defcallback send_release(term, Mqttex.Msg.Simple.t) :: integer
 
 	@doc """
 	Sends a received message and returns the current timeout for an answer in milliseconds. 
@@ -228,8 +228,7 @@ defmodule Mqttex.QoS2Sender do
 	message until a response arrives.
 	"""
 	def send_release(msg_id, mod, sender, duplicate) do
-		header = Mqttex.Msg.fixed_header(:pub_rel, duplicate == :second, :at_least_once, false, 2)
-		m = Mqttex.PubRelMsg[header: header, msg_id: msg_id]
+		m = Mqttex.Msg.pub_rel(msg_id)
 		timeout = mod.send_release(sender, m)
 		receive do
 			%Mqttex.Msg.Simple{msg_type: :pub_comp, msg_id: ^msg_id} -> :ok
@@ -258,7 +257,7 @@ defmodule Mqttex.QoS2Receiver do
 		received = Mqttex.Msg.pub_rec(msg_id)
 		timeout = mod.send_received(receiver, received)
 		receive do
-			Mqttex.PubRelMsg[msg_id: ^msg_id]  -> send_complete(msg, msg_id, mod, receiver, :first)
+			%Mqttex.Msg.Simple{msg_type: :pub_rel, msg_id: ^msg_id} -> send_complete(msg, msg_id, mod, receiver, :first)
 			%Mqttex.Msg.Publish{msg_id: ^msg_id} -> send_received(msg, msg_id, mod, receiver, :second)
 			after timeout                        -> send_received(msg, msg_id, mod, receiver, :second)
 		end
@@ -281,7 +280,7 @@ defmodule Mqttex.QoS2Receiver do
 		complete = Mqttex.Msg.pub_comp(msg_id)
 		timeout = mod.send_complete(receiver, complete)
 		receive do
-			Mqttex.PubRelMsg[msg_id: ^msg_id] -> 
+			%Mqttex.Msg.Simple{msg_type: :pub_Rel, msg_id: ^msg_id} -> 
 				wait_for_completed_timeout(msg_id, mod, receiver, nr_of_timeout - 1)
 			after  timeout                    -> 
 				wait_for_completed_timeout(msg_id, mod, receiver, nr_of_timeout - 1)

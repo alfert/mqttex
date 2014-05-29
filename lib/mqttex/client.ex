@@ -150,7 +150,7 @@ defmodule Mqttex.Client do
 	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_ack} = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_rec} = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_comp} = msg}, state), do: dispatch_sender(msg, state)
-	def handle_cast({:receive, Mqttex.PubRelMsg[] = msg}, state), do: dispatch_receiver(msg, state)
+	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_rel}  = msg}, state), do: dispatch_receiver(msg, state)
 	def handle_cast({:receive, msg = %Mqttex.Msg.ConnAck{}}, state) do
 		:ok = on_message(self, msg)
 		{:noreply, state, state.timeout}
@@ -215,7 +215,7 @@ defmodule Mqttex.Client do
 	#############################################################################################
 
 	def receive(server, %Mqttex.Msg.Publish{}= msg), do: do_receive(server, msg)
-	def receive(server, Mqttex.PubRelMsg[]= msg), do: do_receive(server, msg)
+	# def receive(server, Mqttex.PubRelMsg[]= msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Simple{}= msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.PubRecMsg[]= msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.PubCompMsg[]= msg), do: do_receive(server, msg)
