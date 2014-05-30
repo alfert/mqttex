@@ -141,6 +141,14 @@ defmodule MqttexDecoderTest do
 		Process.exit(buf_pid, :kill)
 	end
 
+	test "subscribe message" do 
+		flunk "not implemented yet"
+	end
+
+	test "connect message" do
+		flunk "not implemented yet"
+	end
+
 	@doc "Simulates the TCP get functions to read the next byte from a list of bytes."
 	def next_byte([]), do: {nil, nil} 
 	def next_byte([h | t]) do
