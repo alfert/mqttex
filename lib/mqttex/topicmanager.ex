@@ -74,8 +74,8 @@ defmodule Mqttex.TopicManager do
 
 	Returns the list of granted qos types. 
 	"""
-	@spec subscribe(Mqttex.SubscribeMsg.t, binary) :: [Mqttex.qos_type]
-	def subscribe(Mqttex.SubscribeMsg[] = topics, from) do
+	@spec subscribe(Mqttex.Msg.Subscribe.t, binary) :: [Mqttex.qos_type]
+	def subscribe(%Mqttex.Msg.Subscribe{} = topics, from) do
 		:gen_server.call(@my_name, {:subscribe, topics, from})
 	end
 	
@@ -108,7 +108,7 @@ defmodule Mqttex.TopicManager do
 		Enum.each(subscribed_clients, fn({c, q}) -> Mqttex.Topic.subscribe(topic, q, c)end)
 		{:return, :ok, new_state}
 	end
-	def handle_call({:subscribe, Mqttex.SubscribeMsg[topics: topics], _from}, client, state) do
+	def handle_call({:subscribe, %Mqttex.Msg.Subscribe{topics: topics}, _from}, client, state) do
 		# manage the state ...
 		{new_state, new_topics} = manage_subscriptions(topics, client, state)
 

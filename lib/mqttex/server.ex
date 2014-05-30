@@ -54,7 +54,7 @@ defmodule Mqttex.Server do
 	session and returns immediatly.
 	"""
 	def receive(server, %Mqttex.Msg.Publish{} = msg), do: do_receive(server, msg)
-	def receive(server, Mqttex.SubscribeMsg[] = msg), do: do_receive(server, msg)
+	def receive(server, %Mqttex.Msg.Subscribe{} = msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Unsubscribe{} = msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Simple{} = msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.PingReqMsg[] = msg), do: do_receive(server, msg)
@@ -191,7 +191,7 @@ defmodule Mqttex.Server do
 		send(client, Mqttex.Msg.ping_resp)
 		{:noreply, state, con.keep_alive_server}
 	end
-	def clean_session({:receive, Mqttex.SubscribeMsg[] = topics}, ConnectionState[]=state) do
+	def clean_session({:receive, %Mqttex.Msg.Subscribe{} = topics}, ConnectionState[]=state) do
 		# subscribe to topics at the subscription server
 		#   -> the server adds all existing topics 
 		# send the status of freshly subscribed topics back to the client

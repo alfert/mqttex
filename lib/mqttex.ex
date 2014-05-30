@@ -70,7 +70,7 @@ defmodule Mqttex do
 	defrecord ConnectionMsg, header: Mqttex.Msg.fixed_header(), connection: Connection.new
 	
 	# The Subscribe message
-	defrecord SubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: [{"", :fire_and_forget}]
+	# defrecord SubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: [{"", :fire_and_forget}]
 
 	# The Suback message
 	# defrecord SubAckMsg, msg_id: 0, granted_qos: []

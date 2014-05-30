@@ -90,12 +90,6 @@ defmodule Mqttex.Msg do
 		
 	end
 	
-	##############
-	## define publish function and replace Record
-	## does the function compute/correct the fixed header (i.e. length attribute) 
-	##    Makes sense, or?
-	##############
-
 	@doc "Creates a new publish message. The message id is not set per default."
 	def publish(topic, message, qos, msg_id \\ 0) do
 		length = size(message) + 
@@ -154,5 +148,32 @@ defmodule Mqttex.Msg do
 		%SubAck{msg_id: msg_id, granted_qos: granted_qos, header: h }
 	end
 	
+	defmodule Subscribe do
+		defstruct msg_id: 0 :: pos_integer,
+			header: %FixedHeader{} :: FixedHeader.t,
+			topics: [{"", :fire_and_forget}] :: [{binary, Mqttex.qos_type}]
+
+		@doc "Sets the message id"
+		def msg_id(%Subscribe{} = m, id \\ 0) do
+			%Subscribe{m | msg_id: id}
+		end
+	
+		@doc "Sets the duplicate flag to `dup` in the message"
+		def duplicate(%Subscribe{header: h} = m, dup \\ true) do
+			new_h = %FixedHeader{h | duplicate: dup}
+			%Subscribe{m | header: new_h}
+		end
+
+	end
+
+	def subscribe(topics, msg_id \\ 0) do
+		length = 2 + # 16 bit message id
+			topics |> Enum.map(fn(t,q) -> size(t) + 3 # + 16 bit length + 1 byte qos
+				end) |> Enum.sum
+		h = fixed_header(:subscribe, false, :at_least_once, false, length)
+		%Subscribe{msg_id: msg_id, topics: topics, header: h}
+	end
+	
+
 
 end
