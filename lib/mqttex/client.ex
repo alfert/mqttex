@@ -52,8 +52,7 @@ defmodule Mqttex.Client do
 	"""
 	@spec connect(binary, binary, pid, Connection.t | pid ) :: {:ok, term} | {:error, term} | :ignore
 	def connect(username, password, callback_proc, network_channel) do
-		connection = Mqttex.Connection.new([user_name: username, 
-			password: password, client_id: "client #{inspect self}"])
+		connection = Mqttex.Msg.connection("client #{inspect self}", username, password, true)
 		Mqttex.SupClient.start_client(connection, callback_proc, network_channel)
 	end
 
@@ -97,7 +96,7 @@ defmodule Mqttex.Client do
 		Lager.debug "#{__MODULE__}.start_link for #{connection.client_id}"
 		start_result = :gen_server.start_link({:global, "C" <> connection.client_id}, @my_name, 
 									{connection, client_proc, network_channel},
-									[timeout: connection.keep_alive_server])
+									[timeout: connection.keep_alive])
 		server = case start_result do
 			{:ok, pid} -> pid
 			{:error, {:already_started, pid}} -> pid
