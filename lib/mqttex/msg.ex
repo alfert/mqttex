@@ -173,7 +173,42 @@ defmodule Mqttex.Msg do
 		h = fixed_header(:subscribe, false, :at_least_once, false, length)
 		%Subscribe{msg_id: msg_id, topics: topics, header: h}
 	end
-	
 
+
+	defmodule Connection do
+
+		defstruct client_id: "" :: binary,
+			user_name: "" :: binary,
+			password: "" :: binary,
+			keep_alive: :infinity, # or the keep-alive in milliseconds (=1000*mqtt-keep-alive)
+			# keep_alive_server: :infinity, # or 1.5 * keep-alive in milliseconds (=1500*mqtt-keep-alive)
+			last_will: false :: boolean,
+			will_qos: :fire_and_forget :: Mqttex.qos_type,
+			will_retain: false :: boolean,
+			will_topic: "" :: binary,
+			will_message: "" :: binary, 
+			clean_session: true :: boolean,
+			header: %FixedHeader{} :: FixedHeader.t
+			
+	end	
+
+	@doc """
+	Creates a new connect message.
+	"""
+	def connect(client_id, user_name, password, clean_session, keep_alive \\ :infinity, # keep_alive_server \\ :infinity, 
+			last_will, will_qos \\ :fire_and_forget, will_retain \\ false, will_topic \\ "", will_message \\ "") do
+		length = 12 +  # variable header size 
+			size(client_id) + 2 + 
+			size(will_topic) + 2 +
+			size(will_message) + 2 +
+			size(user_name) + 2 +
+			size(password) + 2
+		h = fixed_header(:subscribe, false, :fire_and_forget, false, length)
+		%Connection{client_id: client_id, user_name: user_name, password: password, 
+			keep_alive: keep_alive, last_will: last_will, will_qos: will_qos, 
+			will_retain: will_retain, will_topic: will_topic, 
+			will_message: will_message, clean_session: clean_session, header: h }
+	end
+	
 
 end

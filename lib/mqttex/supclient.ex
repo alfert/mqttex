@@ -25,7 +25,7 @@ defmodule Mqttex.SupClient do
     Creates a child specification for dynamically attaching a MQTTEX server to 
     the supervisor hierarchy
     """
-    def start_client(Mqttex.Connection[] = connection, client_proc, network_channel) do
+    def start_client(%Mqttex.Msg.Connection{} = connection, client_proc, network_channel) do
         # IO.puts "start server for #{connection.client_id}"
         :supervisor.start_child @supervisor, [connection, client_proc, network_channel]
     end

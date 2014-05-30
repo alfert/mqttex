@@ -54,20 +54,20 @@ defmodule Mqttex do
 	# 	length: 0			
 
 	# The connection information for new connections
-	defrecord Connection, 
-		client_id: "",
-		user_name: "",
-		password: "",
-		keep_alive: :infinity, # or the keep-alive in milliseconds (=1000*mqtt-keep-alive)
-		keep_alive_server: :infinity, # or 1.5 * keep-alive in milliseconds (=1500*mqtt-keep-alive)
-		last_will: false,
-		will_qos: :fire_and_forget,
-		will_retain: false,
-		will_topic: "",
-		will_message: ""
+	# defrecord Connection, 
+	# 	client_id: "",
+	# 	user_name: "",
+	# 	password: "",
+	# 	keep_alive: :infinity, # or the keep-alive in milliseconds (=1000*mqtt-keep-alive)
+	# 	keep_alive_server: :infinity, # or 1.5 * keep-alive in milliseconds (=1500*mqtt-keep-alive)
+	# 	last_will: false,
+	# 	will_qos: :fire_and_forget,
+	# 	will_retain: false,
+	# 	will_topic: "",
+	# 	will_message: ""
 
 	# The Connection message
-	defrecord ConnectionMsg, header: Mqttex.Msg.fixed_header(), connection: Connection.new
+	# defrecord ConnectionMsg, header: Mqttex.Msg.fixed_header(), connection: Connection.new
 	
 	# The Subscribe message
 	# defrecord SubscribeMsg, header: Mqttex.Msg.fixed_header(), msg_id: 0, topics: [{"", :fire_and_forget}]

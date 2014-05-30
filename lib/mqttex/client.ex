@@ -92,8 +92,8 @@ defmodule Mqttex.Client do
 	## Gen Server Callbacks
 	###############################################################################
 		
-	@spec start_link(Mqttex.Connection.t, pid, pid | Connection.t) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
-	def start_link(Mqttex.Connection[] = connection, client_proc \\ self(), network_channel) do
+	@spec start_link(Mqttex.Msg.Connection.t, pid, pid | Connection.t) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
+	def start_link(%Mqttex.Msg.Connection{} = connection, client_proc \\ self(), network_channel) do
 		Lager.debug "#{__MODULE__}.start_link for #{connection.client_id}"
 		start_result = :gen_server.start_link({:global, "C" <> connection.client_id}, @my_name, 
 									{connection, client_proc, network_channel},
@@ -102,12 +102,11 @@ defmodule Mqttex.Client do
 			{:ok, pid} -> pid
 			{:error, {:already_started, pid}} -> pid
 		end
-		con_msg = Mqttex.ConnectionMsg.new([connection: connection])
-		send_msg(server, con_msg)
+		send_msg(server, connection)
 		{:ok, server}
 	end
 
-	@spec init({Mqttex.Connection.t, pid, pid | Connection.t}) :: {:ok, ClientState.t}
+	@spec init({Mqttex.Msg.Connection.t, pid, pid | Connection.t}) :: {:ok, ClientState.t}
 	def init({connection, client_proc, network_channel}) when is_pid(network_channel) do
 		out = fn (msg) -> send(network_channel, msg) end
 		state = ClientState.new([client_proc: client_proc, out_fun: out])

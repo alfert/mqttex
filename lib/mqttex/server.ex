@@ -36,10 +36,10 @@ defmodule Mqttex.Server do
 	exists, we have a reconnection situation: if the server is in state `disconnected` 
 	the reconnection can be executed. Otherwise an error occurs.
 	"""
-	@spec connect(Mqttex.ConnectionMsg.t, pid) :: Mqttex.Msg.ConnAck.t | {Mqttex.Msg.ConnAck.t, pid}
-	def connect(Mqttex.ConnectionMsg[connection: connection] = con, client_proc \\ self()) do
-		value = case Mqttex.SupServer.start_server(connection, client_proc) do
-			{:error, {:already_started, pid}} -> reconnect(pid, connection, client_proc) 
+	@spec connect(Mqttex.Msg.Connection.t, pid) :: Mqttex.Msg.ConnAck.t | {Mqttex.Msg.ConnAck.t, pid}
+	def connect(%Mqttex.Msg.Connection{} = con, client_proc \\ self()) do
+		value = case Mqttex.SupServer.start_server(con, client_proc) do
+			{:error, {:already_started, pid}} -> reconnect(pid, con, client_proc) 
 			any -> any
 		end
 		case value do 
@@ -101,8 +101,8 @@ defmodule Mqttex.Server do
 	#### Internal functions
 	#############################################################################################
 
-	@spec start_link(Mqttex.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
-	def start_link( Mqttex.Connection[] = connection, client_proc \\ self()) do
+	@spec start_link(Mqttex.Msg.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
+	def start_link(%Mqttex.Msg.Connection{} = connection, client_proc \\ self()) do
 		Lager.info "#{__MODULE__}.start_link for `#{connection.client_id}'"
 		:gen_server.start_link({:global, "S" <> connection.client_id}, @my_name, {connection, client_proc},
 									[timeout: connection.keep_alive_server])
@@ -299,10 +299,10 @@ defmodule Mqttex.Server do
 	########################################################################################
 
 	@doc "Checks the connection"
-	@spec check_connection(Mqttex.Connection.t) :: Mqttex.conn_ack_type
-	def check_connection(Mqttex.Connection[client_id: c_id]) 
+	@spec check_connection(Mqttex.Msg.Connection.t) :: Mqttex.conn_ack_type
+	def check_connection(%Mqttex.Msg.Connection{client_id: c_id}) 
 		when length(c_id)> 26, do: :identifier_rejected
-	def check_connection(Mqttex.Connection[] = _connection) do
+	def check_connection(%Mqttex.Msg.Connection{} = _connection) do
 		# TODO: check authentication
 		:ok
 	end

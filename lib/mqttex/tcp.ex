@@ -69,7 +69,7 @@ defmodule Mqttex.TCP do
 				Lager.debug("loop #{inspect self}: Socket (unpacked) #{inspect str}")
 				# call the server
 				case str do
-					Mqttex.ConnectionMsg[] = con -> 
+					%Mqttex.Msg.Connection{} = con -> 
 						do_connect(socket, con, mod)
 					_ ->
 						mod.receive(server, str)
@@ -89,7 +89,7 @@ defmodule Mqttex.TCP do
 	Start the server and sends the acknowledgement to the socket 
 	(either with an error, closing the socket, or with the `:ok`) 
 	"""
-	def do_connect(socket, Mqttex.ConnectionMsg[] = con, mod) do
+	def do_connect(socket, %Mqttex.Msg.Connection{} = con, mod) do
 		Lager.info("TCP.do_connect self=#{inspect self} and con = #{inspect con}")
 		case Mqttex.Server.connect(con, self) do
 			{msg, server_pid} -> 
