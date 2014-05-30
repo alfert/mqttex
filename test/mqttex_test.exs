@@ -2,8 +2,8 @@ defmodule MqttexTest do
 	use ExUnit.Case
 
 	test "A mqttx server is up and running" do
-		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
-		conMsg = Mqttex.ConnectionMsg.new [connection: connection]
+		client_id = "MqttexTest A"
+		conMsg = connect(client_id)
 		{%Mqttex.Msg.ConnAck{}, server} = Mqttex.Server.connect(conMsg, self)
 		assert(is_pid(server))
 		ref = Process.monitor server
@@ -14,8 +14,8 @@ defmodule MqttexTest do
 	end
 
 	test "BA start server and ping it with messages" do
-		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
-		conMsg = Mqttex.ConnectionMsg.new [connection: connection]
+		client_id = "MqttexTest A"
+		conMsg = connect(client_id)
 		{%Mqttex.Msg.ConnAck{}, server} = Mqttex.Server.connect(conMsg, self)
 		assert(is_pid(server))
 		ref = Process.monitor server
@@ -31,8 +31,8 @@ defmodule MqttexTest do
 	end
 
 	test "CA start server and reconnect with messages" do
-		connection = Mqttex.Connection.new [client_id: "MqttexTest A"]
-		conMsg = Mqttex.ConnectionMsg.new [connection: connection]
+		client_id = "MqttexTest A"
+		conMsg = connect(client_id)
 		{%Mqttex.Msg.ConnAck{}, server} = Mqttex.Server.connect(conMsg, self)
 		assert(is_pid(server))
 		ref = Process.monitor server
@@ -52,8 +52,7 @@ defmodule MqttexTest do
 
 	test "DA disconnect server and ping with messages" do
 		client_id = "MqttexTest A"
-		connection = Mqttex.Connection.new [client_id: client_id]
-		conMsg = Mqttex.ConnectionMsg.new [connection: connection]
+		conMsg = connect(client_id)
 		{%Mqttex.Msg.ConnAck{}, server} = Mqttex.Server.connect(conMsg, self)
 		assert(is_pid(server))
 		ref = Process.monitor server
@@ -69,6 +68,11 @@ defmodule MqttexTest do
 		wait_for_server_shutdown(ref)
 		refute Process.alive? server
 	end
+
+	def connect(client_id) do
+		Mqttex.Msg.connection(client_id, "", "", true)
+	end
+	
 
 	def wait_for_server_shutdown(ref) do
 		receive do
