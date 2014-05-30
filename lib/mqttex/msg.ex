@@ -195,8 +195,8 @@ defmodule Mqttex.Msg do
 	@doc """
 	Creates a new connect message.
 	"""
-	def connect(client_id, user_name, password, clean_session, keep_alive \\ :infinity, # keep_alive_server \\ :infinity, 
-			last_will, will_qos \\ :fire_and_forget, will_retain \\ false, will_topic \\ "", will_message \\ "") do
+	def connection(client_id, user_name, password, clean_session, keep_alive \\ :infinity, # keep_alive_server \\ :infinity, 
+			last_will \\ false, will_qos \\ :fire_and_forget, will_retain \\ false, will_topic \\ "", will_message \\ "") do
 		length = 12 +  # variable header size 
 			size(client_id) + 2 + 
 			size(will_topic) + 2 +
