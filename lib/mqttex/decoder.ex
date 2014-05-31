@@ -79,8 +79,8 @@ defmodule Mqttex.Decoder do
 	@spec decode_connect(binary) :: Mqttex.Msg.Conection.t
 	def decode_connect(<<0x00, 0x06, "MQIsdp", 0x03, flags :: size(8), keep_alive :: size(16), rest::binary>>) do
 		<<user_flag :: size(1), pass_flag :: size(1), w_retain :: size(1), w_qos :: size(2), 
-			w_flag :: size(1), clean :: size(1), _ ::size(1)>> = flags
-		{client_id, payload} = extract(true, utf8_list(rest))
+			w_flag :: size(1), clean :: size(1), _ ::size(1)>> = <<flags>>
+		{client_id, payload} = extract(1, utf8_list(rest))
 		{will_topic, will_message, payload} = extract2(w_flag, payload)
 		{user_name, payload} = extract(user_flag, payload)
 		{password, payload} = extract(pass_flag, payload)

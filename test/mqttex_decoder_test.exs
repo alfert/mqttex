@@ -51,20 +51,11 @@ defmodule MqttexDecoderTest do
 	end
 
 	test "publish a message" do
-		# anything after the initial 16 bits of the MQTT message, i.e. the optional
-		# length encodings, the variable header and the payload
-		bytes = [0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x0a, "h", "e", "l", "l", "o"]
-		# header contains the fixed header byte and the initial length byte
-		# the call of length(bytes) works only if bytes is shorter then 128 bytes long
-		header = <<0x32, length(bytes)>> 
-		buf_pid = spawn(fn() -> buffer(bytes) end)
-		m = Mqttex.Decoder.decode(header, 
-			fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+		m = message(<<0x32>>, [0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x0a, "h", "e", "l", "l", "o"])
 		assert %Mqttex.Msg.Publish{} = m
 		assert m.topic == "a/b"
 		assert m.msg_id == 10
 		assert m.message == "hello"
-		Process.exit(buf_pid, :kill)
 	end
  
 	test "simple messages with message id" do
@@ -98,65 +89,78 @@ defmodule MqttexDecoderTest do
 			bytes = [] ++ garbage
 			# hmm, the header must be changed for some message types (qos)
 			qos = 1 <<< 1 # qos = at least once, require for pub_rel
-			header = <<(id <<< 4) + qos,0x00>>
-			buf_pid = spawn(fn() -> buffer(bytes) end)
-			m = Mqttex.Decoder.decode(header, 
-				fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+			header = <<(id <<< 4) + qos>>
+			m = message(header, [], garbage)
 			assert %Mqttex.Msg.Simple{} = m  
 			assert m.msg_type == type
-			Process.exit(buf_pid, :kill)
 		end
 	end
 
 	test "unsubscribe message" do
-		# anything after the initial 16 bits of the MQTT message, i.e. the optional
-		# length encodings, the variable header and the payload
-		bytes = [0x00, 0x0b, 0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x03, 0x63, 0x2f, 0x64]
-		# header contains the fix6ed header byte and the initial length byte
-		# the call of length(bytes) works only if bytes is shorter then 128 bytes long
-		header = <<0xa2, length(bytes)>> 
-		buf_pid = spawn(fn() -> buffer(bytes) end)
-		m = Mqttex.Decoder.decode(header, 
-			fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+		m = message(<<0xa2>>, [0x00, 0x0b, 0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x03, 0x63, 0x2f, 0x64])
 		assert %Mqttex.Msg.Unsubscribe{} = m
 		assert m.msg_id == 11
 		assert m.header.qos == :at_least_once
 		assert m.topics == ["a/b", "c/d"]
-		Process.exit(buf_pid, :kill)
+# 		Process.exit(buf_pid, :kill)
 	end
 
 	test "sub_ack message" do
-		# anything after the initial 16 bits of the MQTT message, i.e. the optional
-		# length encodings, the variable header and the payload
-		bytes = [0x00, 0x0c, 0x00, 0x02]
-		# header contains the fix6ed header byte and the initial length byte
-		# the call of length(bytes) works only if bytes is shorter then 128 bytes long
-		header = <<0x90, length(bytes)>> 
-		buf_pid = spawn(fn() -> buffer(bytes) end)
-		m = Mqttex.Decoder.decode(header, 
-			fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+		m = message(<<0x90>>, [0x00, 0x0c, 0x00, 0x02])
 		assert %Mqttex.Msg.SubAck{} = m
 		assert m.msg_id == 12
 		assert m.granted_qos == [:fire_and_forget, :exactly_once]
-		Process.exit(buf_pid, :kill)
 	end
 
 	test "subscribe message" do 
 		flunk "not implemented yet"
 	end
 
-	test "extracter work with bits instead of booleans" do
+	test "extract work with bits instead of booleans" do
 		<<flag :: size(1), _ :: size(7)>> = <<0xff>>
 		assert {"hallo", _} = Mqttex.Decoder.extract(flag, ["hallo"])
 
 		<<flag :: size(1), _ :: size(7)>> = <<0x00>>
 		assert {"", _} = Mqttex.Decoder.extract(flag, ["hallo"])
-		
 	end
 
 	test "connect message" do
-		flunk "not implemented yet"
+		header = <<0x10>>
+		var_header = [0x00, 0x06, "M", "Q", "I", "s", "d", "p", 0x03, 0xce, 0x00, 0x10]
+		payload = [ 0x00, 0x07, "c", "l", "i", "e", "n", "t", "A",
+		       		0x00, 0x06, "t", "o", "p", "i", "c", "A",
+		       		0x00, 0x04, "d", "i", "e", "d",
+		            0x00, 0x03, "j", "o", "e", 
+		            0x00, 0x02, "n", "o"
+		       	]
+		m = message(header, var_header ++ payload)
+		assert %Mqttex.Msg.Connection{} = m
+		assert m.user_name == "joe"
+		assert m.client_id == "clientA"
+		assert m.password == "no"
+		assert m.will_topic == "topicA"
+		assert m.will_retain == false
+		assert m.will_message == "died"
+		assert m.will_qos == :at_least_once
+		assert m.clean_session == true
 	end
+
+	@doc """
+	Creates a binary message and decodes it. 
+
+	* `header`: contains the fixed header byte. The length is constructed from the length of `bytes`.
+	* `bytes`: anything after the initial 16 bits of the MQTT message, i.e. the optional
+		length encodings, the variable header and the payload
+	"""
+	def message(header, bytes, garbage \\ []) do
+		h = header <> <<length(bytes)>> 
+		buf_pid = spawn(fn() -> buffer(bytes ++ garbage) end)
+		m = Mqttex.Decoder.decode(h, 
+			fn() -> next_byte(buf_pid) end, fn(n) -> read_bytes(buf_pid, n) end)
+		Process.exit(buf_pid, :kill)
+		m
+	end
+	
 
 	@doc "Simulates the TCP get functions to read the next byte from a list of bytes."
 	def next_byte([]), do: {nil, nil} 
