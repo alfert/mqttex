@@ -42,8 +42,10 @@ defmodule Mqttex.Decoder do
 		do: Mqttex.Msg.pub_comp(get_msgid(msg))
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsub_ack}), 
 		do: Mqttex.Msg.unsub_ack(get_msgid(msg))
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :subscribe}), do: decode_subscribe(msg, h)
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsubscribe}), do: decode_unsubscribe(msg)
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :sub_ack}), do: decode_sub_ack(msg)
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :connect}), do: decode_connect(msg)
 	
 
 
@@ -62,15 +64,52 @@ defmodule Mqttex.Decoder do
 		%Mqttex.Msg.Publish{ p | header: h, msg_id: msg_id}
 	end
 
+	@spec decode_unsubscribe(binary) :: Mqttex.Msg.Unsubscibe.t
 	def decode_unsubscribe(<<msg_id :: [integer, unsigned, size(16)], content :: binary>>) do
 		topics = utf8_list(content)
 		Mqttex.Msg.unsubscribe(topics, msg_id)
 	end
 
+	@spec decode_sub_ack(binary) :: Mqttex.Msg.SubAck.t
 	def decode_sub_ack(<<msg_id :: [integer, unsigned, size(16)], content :: binary>>) do
 		granted_qos = qos_list(content)
 		Mqttex.Msg.sub_ack(granted_qos, msg_id)
 	end
+
+	@spec decode_connect(binary) :: Mqttex.Msg.Conection.t
+	def decode_connect(<<0x00, 0x06, "MQIsdp", 0x03, flags :: size(8), keep_alive :: size(16), rest::binary>>) do
+		<<user_flag :: size(1), pass_flag :: size(1), w_retain :: size(1), w_qos :: size(2), 
+			w_flag :: size(1), clean :: size(1), _ ::size(1)>> = flags
+		{client_id, payload} = extract(true, utf8_list(rest))
+		{will_topic, will_message, payload} = extract2(w_flag, payload)
+		{user_name, payload} = extract(user_flag, payload)
+		{password, payload} = extract(pass_flag, payload)
+
+		Mqttex.Msg.connection(client_id, user_name, password, clean, keep_alive,
+			w_flag, binary_to_qos(will_qos), w_retain, will_topic, will_message)
+	end
+
+	@spec decode_subscribe(binary, Mqttex.Msg.FixedHeader.t) :: Mqttex.Msg.Subscribe.t
+	def decode_subscribe(<<>>, h) do
+		
+	end
+	
+	@doc """
+	Extracts the head of the list, if the flag is set and return the tail of list.
+	Otherwise return the default value `""` and the unmodified list.
+	"""
+	@spec extract(boolean, [binary]) :: {binary, [binary]}
+	def extract(false, list), do: {"", list}
+	def extract(true, list), do: {hd(list), tl(list)}
+
+	@doc """
+	Extracts the first 2 elements of the list, if the flag is set and return the rest of list.
+	Otherwise return the default values `""` and the unmodified list.
+	"""
+	@spec extract2(boolean, [binary]) :: {binary, binary, [binary]}
+	def extract2(false, list), do: {"", "", list}
+	def extract2(true, list), do: {hd(list), hd(tl list), tl(tl list)}
+	
 			
 	@doc "Decodes a binary as list of qos entries"
 	def qos_list(<<>>, acc), do: Enum.reverse acc
