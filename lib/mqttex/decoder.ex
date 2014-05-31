@@ -85,8 +85,8 @@ defmodule Mqttex.Decoder do
 		{user_name, payload} = extract(user_flag, payload)
 		{password, payload} = extract(pass_flag, payload)
 
-		Mqttex.Msg.connection(client_id, user_name, password, clean, keep_alive,
-			w_flag, binary_to_qos(will_qos), w_retain, will_topic, will_message)
+		Mqttex.Msg.connection(client_id, user_name, password, clean == 1, keep_alive,
+			w_flag == 1, binary_to_qos(w_qos), w_retain == 1, will_topic, will_message)
 	end
 
 	@spec decode_subscribe(binary, Mqttex.Msg.FixedHeader.t) :: Mqttex.Msg.Subscribe.t
@@ -98,17 +98,17 @@ defmodule Mqttex.Decoder do
 	Extracts the head of the list, if the flag is set and return the tail of list.
 	Otherwise return the default value `""` and the unmodified list.
 	"""
-	@spec extract(boolean, [binary]) :: {binary, [binary]}
-	def extract(false, list), do: {"", list}
-	def extract(true, list), do: {hd(list), tl(list)}
+	@spec extract(integer, [binary]) :: {binary, [binary]}
+	def extract(0, list), do: {"", list}
+	def extract(1, list), do: {hd(list), tl(list)}
 
 	@doc """
 	Extracts the first 2 elements of the list, if the flag is set and return the rest of list.
 	Otherwise return the default values `""` and the unmodified list.
 	"""
-	@spec extract2(boolean, [binary]) :: {binary, binary, [binary]}
-	def extract2(false, list), do: {"", "", list}
-	def extract2(true, list), do: {hd(list), hd(tl list), tl(tl list)}
+	@spec extract2(integer, [binary]) :: {binary, binary, [binary]}
+	def extract2(0, list), do: {"", "", list}
+	def extract2(1, list), do: {hd(list), hd(tl list), tl(tl list)}
 	
 			
 	@doc "Decodes a binary as list of qos entries"

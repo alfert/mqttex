@@ -145,6 +145,15 @@ defmodule MqttexDecoderTest do
 		flunk "not implemented yet"
 	end
 
+	test "extracter work with bits instead of booleans" do
+		<<flag :: size(1), _ :: size(7)>> = <<0xff>>
+		assert {"hallo", _} = Mqttex.Decoder.extract(flag, ["hallo"])
+
+		<<flag :: size(1), _ :: size(7)>> = <<0x00>>
+		assert {"", _} = Mqttex.Decoder.extract(flag, ["hallo"])
+		
+	end
+
 	test "connect message" do
 		flunk "not implemented yet"
 	end
