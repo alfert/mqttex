@@ -166,10 +166,10 @@ defmodule Mqttex.Msg do
 
 	end
 
-	def subscribe(topics, msg_id \\ 0) do
+	def subscribe(topics, msg_id \\ 0) when is_integer(msg_id) do
 		length = 2 + # 16 bit message id
-			topics |> Enum.map(fn(t,q) -> size(t) + 3 # + 16 bit length + 1 byte qos
-				end) |> Enum.sum
+			(topics |> Enum.map(fn({t,q}) -> size(t) + 3 # + 16 bit length + 1 byte qos
+				end) |> Enum.sum)
 		h = fixed_header(:subscribe, false, :at_least_once, false, length)
 		%Subscribe{msg_id: msg_id, topics: topics, header: h}
 	end

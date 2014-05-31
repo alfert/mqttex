@@ -90,10 +90,20 @@ defmodule Mqttex.Decoder do
 	end
 
 	@spec decode_subscribe(binary, Mqttex.Msg.FixedHeader.t) :: Mqttex.Msg.Subscribe.t
-	def decode_subscribe(<<>>, h) do
-		
+	def decode_subscribe(<<msg_id :: size(16), payload :: binary>>, h) do
+		topics = topics(payload)
+		%Mqttex.Msg.Subscribe{ Mqttex.Msg.subscribe(topics, msg_id) | header: h}
+		#	Mqttex.Msg.Subscribe.duplicate(h.duplicate == 1)
 	end
 	
+	def topics(<<>>, acc), do: Enum.reverse acc
+	def topics(payload, acc \\ []) do
+		{topic, rest} = utf8(payload)		
+		<<qos :: size(8), r :: binary>> = rest
+		topics(r, [{topic, binary_to_qos(qos)} | acc])  
+	end
+	
+
 	@doc """
 	Extracts the head of the list, if the flag is set and return the tail of list.
 	Otherwise return the default value `""` and the unmodified list.

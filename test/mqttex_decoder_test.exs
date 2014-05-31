@@ -50,6 +50,16 @@ defmodule MqttexDecoderTest do
 		assert h.duplicate == false
 	end
 
+	test "parse a fixed header with a duplicate" do
+		header = <<0x3a, 0>>
+		h = Mqttex.Decoder.decode_fixheader(header, fn() -> next_byte([]) end)
+		assert %Mqttex.Msg.FixedHeader{} = h
+		assert h.message_type == :publish
+		assert h.qos == :at_least_once
+		assert h.retain == false
+		assert h.duplicate == true
+	end
+
 	test "publish a message" do
 		m = message(<<0x32>>, [0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x0a, "h", "e", "l", "l", "o"])
 		assert %Mqttex.Msg.Publish{} = m
@@ -102,7 +112,6 @@ defmodule MqttexDecoderTest do
 		assert m.msg_id == 11
 		assert m.header.qos == :at_least_once
 		assert m.topics == ["a/b", "c/d"]
-# 		Process.exit(buf_pid, :kill)
 	end
 
 	test "sub_ack message" do
@@ -113,15 +122,13 @@ defmodule MqttexDecoderTest do
 	end
 
 	test "subscribe message" do 
-		flunk "not implemented yet"
-	end
-
-	test "extract work with bits instead of booleans" do
-		<<flag :: size(1), _ :: size(7)>> = <<0xff>>
-		assert {"hallo", _} = Mqttex.Decoder.extract(flag, ["hallo"])
-
-		<<flag :: size(1), _ :: size(7)>> = <<0x00>>
-		assert {"", _} = Mqttex.Decoder.extract(flag, ["hallo"])
+		m = message(<<0x8a>>, [0x00, 0xff, 
+			0x00, 0x03, 0x61, 0x2f, 0x62, 0x01,
+			0x00, 0x03, 0x63, 0x2f, 0x64, 0x02])
+		assert %Mqttex.Msg.Subscribe{} = m
+		assert m.topics == [{"a/b", :at_least_once}, {"c/d", :exactly_once}]
+		assert m.msg_id == 255
+		assert m.header.duplicate == true
 	end
 
 	test "connect message" do
@@ -143,6 +150,14 @@ defmodule MqttexDecoderTest do
 		assert m.will_message == "died"
 		assert m.will_qos == :at_least_once
 		assert m.clean_session == true
+	end
+
+	test "extract work with bits instead of booleans" do
+		<<flag :: size(1), _ :: size(7)>> = <<0xff>>
+		assert {"hallo", _} = Mqttex.Decoder.extract(flag, ["hallo"])
+
+		<<flag :: size(1), _ :: size(7)>> = <<0x00>>
+		assert {"", _} = Mqttex.Decoder.extract(flag, ["hallo"])
 	end
 
 	@doc """
