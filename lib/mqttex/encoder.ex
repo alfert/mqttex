@@ -4,9 +4,16 @@ defmodule Mqttex.Encoder do
 
 
 	@doc "Returns the one byte fixed header and the length encoding"
-	def encode_header(header) do
-		<<>>
+	def encode_header(%Mqttex.Msg.FixedHeader{message_type: type, duplicate: dup, 
+			retain: retain, qos: qos, length: length}) do
+		IO.puts "Say something"
+		<<msg_type_to_binary(type) :: size(4),
+			boolean_to_binary(dup) :: bits, 
+			qos_binary(qos) :: size(2), 
+			boolean_to_binary(retain) :: bits, 
+			encode_length(length) :: binary>>
 	end
+	
 	
 	def encode_length(0), do: <<0x00>>
 	def encode_length(l) when l <= 268_435_455, do: encode_length(l, <<>>)
@@ -23,7 +30,11 @@ defmodule Mqttex.Encoder do
 	end
 	
 
-	@doc "convertes atoms the binary qos"
+	@doc "converts boolean to bits"
+	def boolean_to_binary(true), do: <<1 :: size(1)>>
+	def boolean_to_binary(false), do: <<0 :: size(1)>>
+
+	@doc "converts atoms the binary qos"
 	def qos_binary(:fire_and_forget), do: 0
 	def qos_binary(:at_least_once),   do: 1
 	def qos_binary(:exactly_once),    do: 2

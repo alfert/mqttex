@@ -30,4 +30,11 @@ defmodule MqttexEncoderTest do
 		catch_error Mqttex.Encoder.encode_length(268_435_456)
 	end
 
+	test "fixed header encoding" do
+		header = %Mqttex.Msg.FixedHeader{}
+		assert Mqttex.Encoder.encode_header(header) == <<0x00, 0x00>>
+		assert Mqttex.Encoder.encode_header(Mqttex.Msg.fixed_header(:subscribe, 
+			true, :exactly_once, true, 127)) == <<0x8d, 0x7f>>
+	end
+
 end
