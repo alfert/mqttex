@@ -228,7 +228,7 @@ defmodule Mqttex.QoS2Sender do
 	message until a response arrives.
 	"""
 	def send_release(msg_id, mod, sender, duplicate) do
-		m = Mqttex.Msg.pub_rel(msg_id)
+		m = Mqttex.Msg.pub_rel(msg_id, duplicate == :second)
 		timeout = mod.send_release(sender, m)
 		receive do
 			%Mqttex.Msg.Simple{msg_type: :pub_comp, msg_id: ^msg_id} -> :ok
@@ -257,7 +257,7 @@ defmodule Mqttex.QoS2Receiver do
 		received = Mqttex.Msg.pub_rec(msg_id)
 		timeout = mod.send_received(receiver, received)
 		receive do
-			%Mqttex.Msg.Simple{msg_type: :pub_rel, msg_id: ^msg_id} -> send_complete(msg, msg_id, mod, receiver, :first)
+			%Mqttex.Msg.PubRel{msg_id: ^msg_id} -> send_complete(msg, msg_id, mod, receiver, :first)
 			%Mqttex.Msg.Publish{msg_id: ^msg_id} -> send_received(msg, msg_id, mod, receiver, :second)
 			after timeout                        -> send_received(msg, msg_id, mod, receiver, :second)
 		end
@@ -280,7 +280,7 @@ defmodule Mqttex.QoS2Receiver do
 		complete = Mqttex.Msg.pub_comp(msg_id)
 		timeout = mod.send_complete(receiver, complete)
 		receive do
-			%Mqttex.Msg.Simple{msg_type: :pub_Rel, msg_id: ^msg_id} -> 
+			%Mqttex.Msg.PubRel{msg_id: ^msg_id} -> 
 				wait_for_completed_timeout(msg_id, mod, receiver, nr_of_timeout - 1)
 			after  timeout                    -> 
 				wait_for_completed_timeout(msg_id, mod, receiver, nr_of_timeout - 1)

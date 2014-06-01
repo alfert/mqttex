@@ -128,7 +128,7 @@ defmodule Mqttex.ProtocolManager do
 
 	# def dispatch_receiver(PMState[] = state, Mqttex.PubCompMsg[msg_id: id] = msg),  do: dispatch(state, id, msg)
 	def dispatch_receiver(PMState[] = state, %Mqttex.Msg.Simple{msg_id: id} = msg), do: dispatch(state, id, msg)
-	# def dispatch_receiver(PMState[] = state, Mqttex.PubRelMsg[msg_id: id] = msg),   do: dispatch(state, id, msg)
+	def dispatch_receiver(PMState[] = state, %Mqttex.Msg.PubRel{msg_id: id} = msg),   do: dispatch(state, id, msg)
 	def dispatch_receiver(PMState[] = _state, _msg), do: :error
 
 	@doc """

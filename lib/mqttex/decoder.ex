@@ -36,8 +36,8 @@ defmodule Mqttex.Decoder do
 		do: Mqttex.Msg.pub_ack(get_msgid(msg))
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_rec}), 
 		do: Mqttex.Msg.pub_rec(get_msgid(msg))
-	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_rel, qos: :at_least_once}), 
-		do: Mqttex.Msg.pub_rel(get_msgid(msg))
+	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_rel, qos: :at_least_once, duplicate: dup}), 
+		do: Mqttex.Msg.pub_rel(get_msgid(msg), dup)
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :pub_comp}), 
 		do: Mqttex.Msg.pub_comp(get_msgid(msg))
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsub_ack}), 

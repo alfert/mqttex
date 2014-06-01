@@ -13,9 +13,6 @@ defmodule Mqttex.Msg do
 	@doc "Creates a new simple message of type `pub_rec`"
 	def pub_rec(msg_id) when is_integer(msg_id), do: %Simple{msg_type: :pub_rec, msg_id: msg_id}
 
-	@doc "Creates a new simple message of type `pub_rel`"
-	def pub_rel(msg_id) when is_integer(msg_id), do: %Simple{msg_type: :pub_rel, msg_id: msg_id}
-
 	@doc "Creates a new simple message of type `pub_comp`"
 	def pub_comp(msg_id) when is_integer(msg_id), do: %Simple{msg_type: :pub_comp, msg_id: msg_id}
 
@@ -30,6 +27,19 @@ defmodule Mqttex.Msg do
 
 	@doc "Creates a new simple message of type `unsub_ack`"
 	def unsub_ack(msg_id) when is_integer(msg_id), do: %Simple{msg_type: :unsub_ack, msg_id: msg_id}
+
+	defmodule PubRel do
+		@moduledoc """
+		Defines the pub_rel message, which can be sent many times and hence is no simple message.
+		"""
+		defstruct msg_id: 0 :: pos_integer,
+			duplicate: false :: boolean
+	end
+
+	@doc "Creates a new  message of type `pub_rel`"
+	def pub_rel(msg_id, duplicate \\ false) when is_integer(msg_id), 
+		do: %PubRel{msg_id: msg_id, duplicate: duplicate}
+
 
 	defmodule ConnAck do
 		@moduledoc """

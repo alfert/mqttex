@@ -1,7 +1,6 @@
 defmodule MqttexDecoderTest do
 	@moduledoc """
-	This test requires the Lossy Channel for checking that the protocols work for many 
-	messages to send.
+	This test checks the decoding of binary messages to regular Elixir structs.
 	"""
 	require Lager
 	import Bitwise
@@ -71,7 +70,7 @@ defmodule MqttexDecoderTest do
 	test "simple messages with message id" do
 		garbage = [0x54, 0x43, 0xaf]
 
-		message_types = %{ pub_ack: 4, pub_rec: 5, pub_rel: 6, pub_comp: 7, unsub_ack: 11}
+		message_types = %{ pub_ack: 4, pub_rec: 5, pub_comp: 7, unsub_ack: 11}
 		message_types |> Enum.each fn({type, id}) -> 
 			msg_id = :random.uniform(1<<<16) - 1
 			msb = msg_id >>> 8
@@ -104,6 +103,13 @@ defmodule MqttexDecoderTest do
 			assert %Mqttex.Msg.Simple{} = m  
 			assert m.msg_type == type
 		end
+	end
+
+	test "decode PubRel messages" do
+		m = message(<<0x6a>>, [0x00, 0x0a])
+		assert %Mqttex.Msg.PubRel{} = m
+		assert m.msg_id == 10
+		assert m.duplicate == true
 	end
 
 	test "unsubscribe message" do
