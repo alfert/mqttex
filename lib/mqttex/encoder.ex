@@ -3,10 +3,28 @@ defmodule Mqttex.Encoder do
 	use Bitwise
 
 
+	def encode(%Mqttex.Msg.Simple{msg_type: type}) when type in [:ping_req, :ping_resp, :disconnect],
+		do: <<msg_type_to_binary(type) :: size(4), 0 :: size(4), 0x00>>
+	def encode(%Mqttex.Msg.Simple{msg_type: type, msg_id: msg_id}) 
+		when type in [:pub_ack, :pub_rec, :pub_comp, :unsub_ack], 
+		do: <<msg_type_to_binary(type) :: size(4), 0 :: size(4), 0x02, msg_id :: size(16)>>
+	
+	def encode(any) do
+		IO.inspect any	
+	end
+	
+
+
+	#######################################
+	###
+	### PUB_REL can be duped, so it is not a SImpleMessage!
+	###
+	#######################################
+
+
 	@doc "Returns the one byte fixed header and the length encoding"
 	def encode_header(%Mqttex.Msg.FixedHeader{message_type: type, duplicate: dup, 
 			retain: retain, qos: qos, length: length}) do
-		IO.puts "Say something"
 		<<msg_type_to_binary(type) :: size(4),
 			boolean_to_binary(dup) :: bits, 
 			qos_binary(qos) :: size(2), 

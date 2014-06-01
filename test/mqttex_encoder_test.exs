@@ -37,4 +37,10 @@ defmodule MqttexEncoderTest do
 			true, :exactly_once, true, 127)) == <<0x8d, 0x7f>>
 	end
 
+	test "very simple messages without message ids" do
+		assert Mqttex.Encoder.encode(Mqttex.Msg.ping_req()) == <<0xc0, 0x00>>
+		assert Mqttex.Encoder.encode(Mqttex.Msg.ping_resp()) == <<0xd0, 0x00>>
+		assert Mqttex.Encoder.encode(Mqttex.Msg.disconnect()) == <<0xe0, 0x00>>
+	end
+
 end
