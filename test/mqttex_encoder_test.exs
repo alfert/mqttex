@@ -43,4 +43,10 @@ defmodule MqttexEncoderTest do
 		assert Mqttex.Encoder.encode(Mqttex.Msg.disconnect()) == <<0xe0, 0x00>>
 	end
 
+	test "simple messages with message ids" do
+		assert Mqttex.Encoder.encode(Mqttex.Msg.pub_ack(20)) == <<0x40, 0x02, 0x00, 20>>
+		assert Mqttex.Encoder.encode(Mqttex.Msg.pub_rec(21)) == <<0x50, 0x02, 0x00, 21>>
+		assert Mqttex.Encoder.encode(Mqttex.Msg.pub_comp(22)) == <<0x70, 0x02, 0x00, 22>>
+	end
+
 end
