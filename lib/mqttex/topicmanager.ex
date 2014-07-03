@@ -26,21 +26,21 @@ defmodule Mqttex.TopicManager do
 
 	"""
 
-	use GenServer.Behaviour
+	use GenServer
 	require Lager
 
 	@my_name __MODULE__
 
 	@type topic :: binary
 	@type client :: binary
-	defrecord State, [
-		subscriptions: Mqttex.SubscriberSet.new, # map topic_wildcard to {client, qos}
+	defstruct subscriptions: Mqttex.SubscriberSet.new, # map topic_wildcard to {client, qos}
 		topics: HashSet.new, #  all existing (non-wildcard) topics
-		clients: HashDict.new] do # maps client to their subscribed topics
-		record_type subscriptions: Mqttex.SubscriberSet.subscription_set,
-			topics: Set.t(Mqttex.TopicManager.topic),
-			clients: Dict.t(Mqttex.TopicManager.client, [Mqttex.TopicManager.topic])
-	end
+		clients: HashDict.new] 
+	# 	do # maps client to their subscribed topics
+	# 	record_type subscriptions: Mqttex.SubscriberSet.subscription_set,
+	# 		topics: Set.t(Mqttex.TopicManager.topic),
+	# 		clients: Dict.t(Mqttex.TopicManager.client, [Mqttex.TopicManager.topic])
+	# end
 
 	@doc """
 	Publishing a messages means dispatching to topic. If the topic does not 
@@ -88,11 +88,11 @@ defmodule Mqttex.TopicManager do
 	#################################################################################
 	def init([]) do
 		# IO.puts "Init of TopicManager"
-		{:ok, State.new}
+		{:ok, %TopicManager{} }
 	end
 
 	def handle_call({:start_topic, %Mqttex.Msg.Publish{topic: topic} = _msg, _from}, _, 
-						State[] = state) do
+						%TopicManager{} = state) do
 		# ignore any problems during start, in particular :already_started
 		# because we call the topic server via its name. Any problems happening
 		# from concurrent starts of the topics are resolved here: after start_topic
@@ -125,13 +125,13 @@ defmodule Mqttex.TopicManager do
 
 	Returns the new state and list of newly subscribed topics
 	"""
-	@spec manage_subscriptions([{topic, Mqttex.qos_type}], client, State.t):: {State.t, [topic]}
+	@spec manage_subscriptions([{topic, Mqttex.qos_type}], client, TopicManager.t):: {TopicManager.t, [topic]}
 	def manage_subscriptions(topics, client, state = State[clients: clients, topics: all_topics]) do
 		# topics contains wildcards and others. Store them in to the new state
 		# topics is list of {wildcard, qos}
 		subs = Mqttex.SubscriberSet.put_all(state.subscriptions, 
 			Enum.map(topics, fn({topic, qos}) -> {topic, {client, qos}} end))
-		new_state = state.subscriptions(subs)
+		new_state = %TopicManager{state | subscriptions: subs}
 		
 		# identify all (new) already existing topics to that the client 
 		# is subscribing. 
@@ -147,15 +147,15 @@ defmodule Mqttex.TopicManager do
 					false -> acc
 				end
 			end)
-		new_state1 = new_state.clients(Dict.update(clients, client, new_topics,
-			fn(v) -> Set.put_all(v, Enum.map(new_topics, &(&1))) end))
+		new_state1 = %TopicManager{ new_state | clients: Dict.update(clients, client, new_topics,
+			fn(v) -> Set.put_all(v, Enum.map(new_topics, &(&1))) end)}
 		{new_state1, new_topics}
 	end
 	
 
-	def manage_topic_start(topic, State[topics: topics] = state) do
+	def manage_topic_start(topic, %TopicManager{topics: topics} = state) do
 		# add the new topic to all existings topics
-		new_state = state.topics(Set.put(topics, topic))
+		new_state = %TopicManager{state | topics: Set.put(topics, topic)}
 		# find all subscribers
 		subscribed_clients = all_subscribers_of_topic(new_state, topic)
 		Lager.debug("New State = #{inspect new_state}")
@@ -173,8 +173,8 @@ defmodule Mqttex.TopicManager do
 	Returns a list of process ids for all clients subscribed to this topic. Resolves
 	wildcard topic subscription. 
 	"""
-	@spec all_subscribers_of_topic(State.t | Mqttex.SubscriberSet.subscription_set, topic) :: [{client, Mqttex.qos_type}] 
-	def all_subscribers_of_topic(State[subscriptions: sub], topic), do: all_subscribers_of_topic(sub, topic)
+	@spec all_subscribers_of_topic(TopicManager.t | Mqttex.SubscriberSet.subscription_set, topic) :: [{client, Mqttex.qos_type}] 
+	def all_subscribers_of_topic(%TopicManager{subscriptions: sub}, topic), do: all_subscribers_of_topic(sub, topic)
 	def all_subscribers_of_topic(sub, topic) do
 		Mqttex.SubscriberSet.match(sub, topic)
 	end

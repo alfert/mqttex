@@ -20,11 +20,12 @@ defmodule Mqttex.Topic do
 	# }
 	# @enduml
 
-	defrecord State, topic: "", 
-		subscriptions: HashDict.new() do
-		record_type topic: binary,
-			subscriptions:  Dict.t(binary, Mqttex.qos_type)
-	end
+	defstruct topic: "", 
+		subscriptions: HashDict.new()
+	# 	 do
+	# 	record_type topic: binary,
+	# 		subscriptions:  Dict.t(binary, Mqttex.qos_type)
+	# end
 
 	def start_link(topic) when is_binary(topic) do
 		:gen_server.start_link(topic_server(topic), __MODULE__,  topic, [])
@@ -68,20 +69,20 @@ defmodule Mqttex.Topic do
 	####################################################################################
 
 	def init(topic) do
-		{:ok, State.new[topic: topic]}
+		{:ok, %Topic{topic: topic} }
 	end
 
 
 	def handle_call({:publish, %Mqttex.Msg.Publish{message: content} = _msg, _client}, 
-				    _from, State[subscriptions: subs] = state) do
+				    _from, %Topic{subscriptions: subs} = state) do
 		Enum.each(subs, fn({session, qos}) -> send_msg(session, content, qos) end)
 		{:reply, :ok, state}
 	end
-	def handle_call({:subscribe, client, qos}, _from, State[subscriptions: subs] = state) do
+	def handle_call({:subscribe, client, qos}, _from, %Topic{subscriptions: subs} = state) do
 		new_state = state.subscriptions(Dict.put(subs, client, qos))
 		{:reply, qos, new_state}
 	end
-	def handle_call({:unsubscribe, client}, _from, State[subscriptions: subs] = state) do
+	def handle_call({:unsubscribe, client}, _from, %Topic{subscriptions: subs} = state) do
 		new_subs = Dict.delete(client)
 		new_state = state.subscriptions new_subs
 		{:reply, :ok, new_state}
