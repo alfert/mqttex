@@ -1,5 +1,5 @@
 defmodule Mqttex.SupServer do
-    use Supervisor.Behaviour
+    use Supervisor
 
     # name of the supervisor process
     @supervisor __MODULE__
