@@ -6,8 +6,8 @@ defmodule Mqttex.Mixfile do
     elixirc_defaults = [:debug_info, :ignore_module_conflict, :docs]
     [ app: :mqttex,
       version: "0.0.1",
-      elixir: "~> 0.13",
-      elixirc_options: elixirc_defaults ++ options(Mix.env),
+      elixir: "~> 0.14",
+      # elixirc_options: elixirc_defaults ++ options(Mix.env),
       deps: deps,
       dialyzer: [paths: ["_build/shared/lib/mqttex/ebin"] ], 
       # test_coverage: [tool: Coverex.Task],
@@ -44,11 +44,11 @@ defmodule Mqttex.Mixfile do
       {:exlager, ~r".*",[github: "khia/exlager"]},
       {:ranch,"0.9.0", [github: "extend/ranch", tag: "0.9.0"]},
       {:dialyxir,"0.2.3",[github: "jeremyjh/dialyxir"]},
-      # Generate documentation with ex_doc, valid for Elixir 0.13.3
-      { :ex_doc, github: "elixir-lang/ex_doc", ref: "4a6391bf2" },
+      # Generate documentation with ex_doc, valid for Elixir 0.14.1
+      { :ex_doc, github: "elixir-lang/ex_doc", ref: "ca71b84b9c3c" },
       # Cover tests
       #{ :coverex, [path: "../coverex"] }
-      {:coverex, "~> 0.0.3"}
+      {:coverex, "~> 0.0.4"}
     ]
   end
 
