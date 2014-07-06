@@ -9,14 +9,14 @@ defmodule MqttexTopicTest do
 	@type qos :: :fire_and_forget | :at_least_once | :exactly_once
 
 	test "fresh and empty subscriptions" do
-		s = Mqttex.TopicManager.State.new()
+		s = %Mqttex.TopicManager{}
 		assert 0 == Mqttex.SubscriberSet.size(s.subscriptions)
 		assert Enum.empty? s.topics
 		assert Enum.empty? s.clients
 	end
 
  	test "start topic without subscription" do
-		s0 = Mqttex.TopicManager.State.new()
+		s0 = %Mqttex.TopicManager{}
 		{s1, c}  = Mqttex.TopicManager.manage_topic_start("hello", s0)
 		assert 0 == Mqttex.SubscriberSet.size(s1.subscriptions)
 		assert ["hello"] == Enum.to_list(s1.topics)
@@ -25,7 +25,7 @@ defmodule MqttexTopicTest do
  	end
 
 	test "simple subscription of not started topic" do
-		s0 = Mqttex.TopicManager.State.new()
+		s0 = %Mqttex.TopicManager{}
 		{s1, t} = Mqttex.TopicManager.manage_subscriptions([{"hello", :fire_and_forget}], "clientA", s0)
 		assert 1 == Mqttex.SubscriberSet.size(s1.subscriptions)
 		assert Enum.empty? s1.topics
@@ -34,7 +34,7 @@ defmodule MqttexTopicTest do
  	end
 
  	test "simple subscription and start" do
-		s0 = Mqttex.TopicManager.State.new()
+		s0 = %Mqttex.TopicManager{}
 		{s1, t} = Mqttex.TopicManager.manage_subscriptions([{"hello", :fire_and_forget}], "clientA", s0)
 		{s2, c} = Mqttex.TopicManager.manage_topic_start("hello", s1)
 
@@ -45,7 +45,7 @@ defmodule MqttexTopicTest do
 
 	test "subscribe many and start some" do
 		# prepare initial subscriptions
-		s0 = Mqttex.TopicManager.State.new()
+		s0 = %Mqttex.TopicManager{}
 		{s1, ts} = Enum.reduce(unique_values, {s0, []}, fn({topic, {c, q}}, {s, _}) -> 
 			Mqttex.TopicManager.manage_subscriptions([{topic, q}], c, s)
 		end)

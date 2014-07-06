@@ -165,7 +165,7 @@ defmodule Mqttex.TopicManager do
 				# update the dict of client->topics
 				Dict.update(cs, client, Enum.into([topic], HashSet.new), &(Set.put(&1, topic)))
 			end)
-		{new_state.clients(new_clients), subscribed_clients}
+		{%Mqttex.TopicManager{new_state | clients: new_clients}, subscribed_clients}
 	end
 	
 
