@@ -53,7 +53,7 @@ defmodule Mqttex.TCP do
 				{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 4}])
 				loop(socket, client, Mqttex.Client)
 			end
-		Process.spawn_link(looper)
+		spawn_link(looper)
 	end
 	
 
