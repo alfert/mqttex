@@ -43,7 +43,7 @@ defmodule Mqttex.Mixfile do
       # { :properex, ">= 0.1", [github: "yrashk/properex"]},
       {:exlager, ~r".*",[github: "khia/exlager"]},
       {:ranch,"0.9.0", [github: "extend/ranch", tag: "0.9.0"]},
-      {:dialyxir,"0.2.3",[github: "jeremyjh/dialyxir"]},
+      {:dialyxir,"0.2.4",[github: "jeremyjh/dialyxir"]},
       # Generate documentation with ex_doc, valid for Elixir 0.14.1
       { :ex_doc, github: "elixir-lang/ex_doc", ref: "ca71b84b9c3c" },
       # Cover tests
