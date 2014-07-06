@@ -48,7 +48,7 @@ defmodule Mqttex.TCP do
 	@doc """
 	Starts a new channel and returns its process id.
 	"""
-	def start_channel(Mqttex.Client.Connection[server: server, port: port] = _con, client) do
+	def start_channel(%Mqttex.Client.Connection{server: server, port: port} = _con, client) do
 		looper = fn() -> 
 				{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 4}])
 				loop(socket, client, Mqttex.Client)
