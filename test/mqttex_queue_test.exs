@@ -162,14 +162,12 @@ defmodule MqttexQueueTest do
 
 	setup do
 		Mqttex.Test.MsgStat.start_link()
+		on_exit fn -> 
+			Mqttex.Test.MsgStat.stop()
+			:ok
+		end
 		:ok
-	end
-	
-	teardown do
-		Mqttex.Test.MsgStat.stop()
-		:ok
-	end
-	
+	end	
 
 	def print_stats(message_count, result_count) do
 		{msgs, losses} = Mqttex.Test.MsgStat.get_counts()
