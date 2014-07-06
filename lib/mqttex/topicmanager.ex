@@ -35,7 +35,7 @@ defmodule Mqttex.TopicManager do
 	@type client :: binary
 	defstruct subscriptions: Mqttex.SubscriberSet.new, # map topic_wildcard to {client, qos}
 		topics: HashSet.new, #  all existing (non-wildcard) topics
-		clients: HashDict.new] 
+		clients: HashDict.new 
 	# 	do # maps client to their subscribed topics
 	# 	record_type subscriptions: Mqttex.SubscriberSet.subscription_set,
 	# 		topics: Set.t(Mqttex.TopicManager.topic),
