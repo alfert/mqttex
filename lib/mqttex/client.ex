@@ -39,7 +39,7 @@ defmodule Mqttex.Client do
 	end
 	@spec new_connection(binary, atom, number) :: Connection.t
 	def new_connection(server, networkmodule, port) do
-		Connection.new([server: server, port: port, module: networkmodule])
+		%Mqttex.Client.Connection{server: server, port: port, module: networkmodule}
 	end
 	
 	
