@@ -4,7 +4,7 @@ defmodule MqttexSetTest do
 
 	test "fresh and empty Set" do
 		s = Mqttex.SubscriberSet.new()
-		assert :erlang.element(1, s) == Mqttex.SubscriberSet
+		assert %Mqttex.SubscriberSet{} = s
 		assert 0 == Mqttex.SubscriberSet.size(s)
 
 		e = Mqttex.SubscriberSet.empty(s)

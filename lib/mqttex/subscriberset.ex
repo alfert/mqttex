@@ -84,21 +84,25 @@ defmodule Mqttex.SubscriberSet do
 		qos: :fire_and_forget # :: Mqttex.qos_type
 
 	# the root node holds the size and the "real" root snode
-	defrecordp :sroot, Mqttex.SubscriberSet, 
-		size: 0, # :: integer,
+	# defrecordp :sroot, Mqttex.SubscriberSet, 
+	# 	size: 0, # :: integer,
+	# 	root: nil #  :: snode_t
+
+	defstruct size: 0, # :: integer,
 		root: nil #  :: snode_t
+
 
 	@doc "Returns a new empty SubscriberSet"
 	@spec new :: subscription_set
-	def new(), do: sroot(root: snode())
+	def new(), do: %Mqttex.SubscriberSet{root: snode()}
 
 	@doc "a fresh empty set of the same type"
 	@spec empty(subscription_set) :: subscription_set
-	def empty(sroot()), do: new()
+	def empty(%Mqttex.SubscriberSet{}), do: new()
 
 	@doc "size of the subscriber set"	
 	@spec size(subscription_set) :: non_neg_integer
-	def size(sroot(size: size)), do: size
+	def size(%Mqttex.SubscriberSet{size: size}), do: size
 
 
 	@doc """
@@ -108,7 +112,7 @@ defmodule Mqttex.SubscriberSet do
 	are used to identify all interested clients. 
 	"""
 	@spec match(subscription_set, path) :: [subscriber]
-	def match(s = sroot(root: root), topic_path) do
+	def match(s = %Mqttex.SubscriberSet{root: root}, topic_path) do
 		#Lager.info "match of path #{topic_path}"
 		p = split(topic_path)
 		do_match(root, p, []) |> List.flatten
@@ -150,12 +154,12 @@ defmodule Mqttex.SubscriberSet do
 	It is checked, that the structure of the element fits to the above defined structure.
 	"""
 	@spec put(subscription_set, subscription) :: subscription_set
-	def put(set = sroot(size: size, root: root), _value = {ep, ev}) 
+	def put(set = %Mqttex.SubscriberSet{size: size, root: root}, _value = {ep, ev}) 
 		when is_binary(ep) and is_tuple(ev) and 2 == tuple_size(ev) do # COMPILER BUG
 	
 		p = convert_path(ep)
 		{counter, new_root} = do_put(root, p, ev)
-		sroot(root: new_root, size: size + counter)
+		%Mqttex.SubscriberSet{root: new_root, size: size + counter}
 	end
 		
 	defp do_put(snode(leafs: ls) = s, [], ev) do
@@ -194,7 +198,7 @@ defmodule Mqttex.SubscriberSet do
 	Checks if an element is in the subscriber set. Returns `true` if found, else `false`.
 	"""
 	@spec member?(subscription_set, subscription) :: boolean
-	def member?(_set = sroot(root: root), _element = {ep, ev}) do
+	def member?(_set = %Mqttex.SubscriberSet{root: root}, _element = {ep, ev}) do
 		p = convert_path(ep)
 		leafs = find_leafs(root, p)
 		# search in leafs for ev
@@ -209,10 +213,10 @@ defmodule Mqttex.SubscriberSet do
 
 	@doc "Deletes an element from the set"
 	@spec delete(subscription_set, subscription) :: subscription_set
-	def delete(sroot(root: root, size: size), {ep, ev}) do
+	def delete(%Mqttex.SubscriberSet{root: root, size: size}, {ep, ev}) do
 		p = convert_path(ep)
 		{new_root, delta, size} = delete(root, p, ev)
-		sroot(root: new_root, size: size - delta)
+		%Mqttex.SubscriberSet{root: new_root, size: size - delta}
 	end
 	defp delete(snode(leafs: ls)=s, [], ev) do 
 		Lager.debug("delete - leafs = #{inspect ls}, path  = []")
@@ -316,7 +320,7 @@ defmodule Mqttex.SubscriberSet do
 
 	"""
 	@spec reduce(subscription_set, any, any :: any) :: any
-	def reduce(set = sroot(root: root), acc, fun) do 
+	def reduce(set = %Mqttex.SubscriberSet{root: root}, acc, fun) do 
 		do_reduce(root, [], acc, fun, fn # next function for the root node
 			{:halt, acc} -> {:halted, acc} # stop the reducer from the outside
 			{:cont, acc} -> {:done, acc} # we are ready with iterating
@@ -369,7 +373,7 @@ defmodule Mqttex.SubscriberSet do
 
 	"""
 	@spec print(subscription_set) :: :ok
-	def print(sroot(root: root)), do: print(root, [])
+	def print(%Mqttex.SubscriberSet{root: root}), do: print(root, [])
 
 	defp print(snode(hash: hs, children: cs, leafs: ls), path) do
 		Enum.each(ls, &print(&1, path))
