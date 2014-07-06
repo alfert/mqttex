@@ -59,12 +59,12 @@ defmodule Mqttex.Test.SessionAdapter do
 
 	@timeout 200
 
-	defstruct senders: Mqttex.ProtocolManager.new(), 
-		receivers: Mqttex.ProtocolManager.new(),
+	defstruct senders: %Mqttex.ProtocolManager{}, 
+		receivers: %Mqttex.ProtocolManager{},
 		final: nil
 
 	def start(chOut, final \\ self) when is_pid(chOut) and is_pid(final) do
-		state = %SessionAdapter{final: final}
+		state = %Mqttex.Test.SessionAdapter{final: final}
 		loop(chOut, state)
 	end
 
@@ -127,20 +127,20 @@ defmodule Mqttex.Test.SessionAdapter do
 				loop(channel, state)
 			{:drop_sender, msg_id} ->
 				new_sender = Mqttex.ProtocolManager.delete(state.senders, msg_id)
-				loop(channel, %SesseionAdapter{ state | senders: new_sender})
+				loop(channel, %Mqttex.Test.SessionAdapter{ state | senders: new_sender})
 			{:drop_receiver, msg_id} ->
 				new_receiver = Mqttex.ProtocolManager.delete(state.receivers, msg_id)
-				loop(channel, %SesseionAdapter{ state | receivers: new_receiver})
+				loop(channel, %Mqttex.Test.SessionAdapter{ state | receivers: new_receiver})
 			{:on, msg} -> 
 				# Lager.info("on_message: #{inspect msg}\nSending to #{inspect state.final}")
 				send(state.final, msg)
 				loop(channel, state)
 			{:publish, pub} ->
 				new_sender = Mqttex.ProtocolManager.sender(state.senders, pub, __MODULE__, self)
-				loop(channel, %SesseionAdapter{ state | senders: new_sender})
+				loop(channel, %Mqttex.Test.SessionAdapter{ state | senders: new_sender})
 			%Mqttex.Msg.Publish{} = pub ->
 				new_rec = Mqttex.ProtocolManager.receiver(state.receivers, pub, __MODULE__, self)
-				loop(channel, %SesseionAdapter{ state | receivers: new_rec })
+				loop(channel, %Mqttex.Test.SessionAdapter{ state | receivers: new_rec })
 			msg -> 
 				case Mqttex.ProtocolManager.dispatch_receiver(state.receivers, msg) do
 					:error ->

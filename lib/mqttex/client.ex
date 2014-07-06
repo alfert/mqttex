@@ -3,26 +3,26 @@ defmodule Mqttex.Client do
 	The client interface to the MQTT Server. 
 	"""
 	require Lager
-	use GenServer.Behaviour
+	use GenServer
 	@my_name __MODULE__
 	@default_timeout 500 # 100m milliseconds timeout 
 
 	use Mqttex.SenderBehaviour
 	use Mqttex.ReceiverBehaviour
 
-	defrecord Connection, 
-		server: "",
-		protocol: :tcp,
-		port: 1883, 
-		module: nil		# a channel module
+	defmodule Connection do
+		defstruct server: "",
+			protocol: :tcp,
+			port: 1883, 
+			module: nil		# a channel module
+	end
 
-	defrecord ClientState, 
-		client_proc: :none,
+	defstruct client_proc: :none,
 		out_fun: :none,
 		timeout: @default_timeout, 
 		subscriptions: [],
-		senders: Mqttex.ProtocolManager.new(), 
-		receivers: Mqttex.ProtocolManager.new()
+		senders: %Mqttex.ProtocolManager{}, 
+		receivers: %Mqttex.ProtocolManager{}
 
 	###############################################################################
 	## API
@@ -108,10 +108,10 @@ defmodule Mqttex.Client do
 	@spec init({Mqttex.Msg.Connection.t, pid, pid | Connection.t}) :: {:ok, ClientState.t}
 	def init({connection, client_proc, network_channel}) when is_pid(network_channel) do
 		out = fn (msg) -> send(network_channel, msg) end
-		state = ClientState.new([client_proc: client_proc, out_fun: out])
+		state = %Mqttex.Client{client_proc: client_proc, out_fun: out}
 		{:ok, state, state.timeout}
 	end
-	def init({connection, client_proc, Connection[module: mod] = network_channel}) do
+	def init({connection, client_proc, %Mqttex.Client.Connection{module: mod} = network_channel}) do
 		# TODO : make a TCP connection and store a sender function in out
 
 		# use the module in network_channel as callback. Define a 
@@ -119,27 +119,27 @@ defmodule Mqttex.Client do
 
 		channel = mod.start_channel(network_channel, self)
 		out = fn(msg) -> send(channel, msg) end
-		state = ClientState.new([client_proc: client_proc, out_fun: out])
+		state = %Mqttex.Client{client_proc: client_proc, out_fun: out}
 		{:ok, state, state.timeout}		
 	end
 	
 
-	def handle_call({:send, msg}, _from, ClientState[out_fun: out_fun] = state) do
+	def handle_call({:send, msg}, _from, %Mqttex.Client{out_fun: out_fun} = state) do
 		do_send_msg(msg, state)
 		{:reply, state.timeout, state, state.timeout}
 	end
 	
-	def handle_cast({:publish, msg}, ClientState[senders: senders] = state) do
+	def handle_cast({:publish, msg}, %Mqttex.Client{senders: senders} = state) do
 		new_sender = Mqttex.ProtocolManager.sender(state.senders, msg, __MODULE__, self)
-		{:noreply, state.update(senders: new_sender), state.timeout}
+		{:noreply, %Mqttex.Client{state | senders: new_sender}, state.timeout}
 	end
-	def handle_cast({:on, msg}, ClientState[client_proc: client] = state) do
+	def handle_cast({:on, msg}, %Mqttex.Client{client_proc: client} = state) do
 		send(client, msg)
 		{:noreply, state, state.timeout}
 	end
 	def handle_cast({:receive, %Mqttex.Msg.Publish{} = msg}, state) do 
 		new_receiver = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
-		{:noreply, state.update(receivers: new_receiver), state.timeout}
+		{:noreply, %Mqttex.Client{state | receivers: new_receiver}, state.timeout}
 	end
 	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :ping_resp} = msg}, state) do
 		# nothing to do, timeout is set for starting next ping again
@@ -153,25 +153,25 @@ defmodule Mqttex.Client do
 		:ok = on_message(self, msg)
 		{:noreply, state, state.timeout}
 	end
-	def handle_cast({:drop_receiver, msg_id}, ClientState[receivers: receivers] = state) do
+	def handle_cast({:drop_receiver, msg_id}, %Mqttex.Client{receivers: receivers} = state) do
 		new_receiver = Mqttex.ProtocolManager.delete(state.receivers, msg_id)
-		{:noreply, state.update(receivers: new_receiver), state.timeout}
+		{:noreply, %Mqttex.Client{state | receivers: new_receiver}, state.timeout}
 	end
-	def handle_cast({:drop_sender, msg_id}, ClientState[senders: senders] = state) do
-		new_sender = Mqttex.ProtocolManager.delete(state.senders, msg_id)
-		{:noreply, state.update(sender: new_sender), state.timeout}
+	def handle_cast({:drop_sender, msg_id}, %Mqttex.Client{senders: senders} = state) do
+		new_senders = Mqttex.ProtocolManager.delete(state.senders, msg_id)
+		{:noreply, %Mqttex.Client{state | senders: new_senders}, state.timeout}
 	end
-	def handle_cast({:disconnect, msg}, ClientState[senders: senders] = state) do
+	def handle_cast({:disconnect, msg}, %Mqttex.Client{senders: senders} = state) do
 		# send directly the message and quit the server
 		do_send_msg(msg,state)
 		{:stop, {:shutdown, :disconnect}, state}
 	end
 	
-	defp dispatch_receiver(msg, ClientState[receivers: receivers] = state) do
+	defp dispatch_receiver(msg, %Mqttex.Client{receivers: receivers} = state) do
 		:ok = Mqttex.ProtocolManager.dispatch_receiver(receivers, msg)
 		{:noreply, state, state.timeout}
 	end
-	defp dispatch_sender(msg, ClientState[senders: senders] = state) do
+	defp dispatch_sender(msg, %Mqttex.Client{senders: senders} = state) do
 		r = case Mqttex.ProtocolManager.dispatch_sender(senders, msg) do
 			:ok -> :ok
 			:error -> 
@@ -185,7 +185,7 @@ defmodule Mqttex.Client do
 	end
 
 	@doc "Initiate a Ping request, if there are no message transfers from/to the server"
-	def handle_info(:timeout, ClientState[] = state) do
+	def handle_info(:timeout, %Mqttex.Client{} = state) do
 		# start a ping request
 		ping = Mqttex.Msg.ping_req
 		do_send_msg(ping, state)		
@@ -198,7 +198,7 @@ defmodule Mqttex.Client do
 	end
 
 	# Executes the send of a message as internal function
-	defp do_send_msg(msg, ClientState[out_fun: out_fun] = state) do
+	defp do_send_msg(msg, %Mqttex.Client{out_fun: out_fun} = state) do
 		Lager.debug("Mqttex.Client.do_send: #{inspect msg}")
 		out_fun.(msg)
 	end

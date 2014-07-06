@@ -1,6 +1,6 @@
 defmodule Mqttex.Test.MsgStat do
 	
-	use GenServer.Behaviour
+	use GenServer
 	@my_name __MODULE__
 
 	require Lager

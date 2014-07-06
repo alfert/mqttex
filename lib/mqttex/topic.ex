@@ -8,7 +8,7 @@ defmodule Mqttex.Topic do
 	for wildcard subscriptions is important. 
 
 	"""
-	use GenServer.Behaviour
+	use GenServer
 
 	### UML Specification
 	# @startuml
@@ -69,20 +69,20 @@ defmodule Mqttex.Topic do
 	####################################################################################
 
 	def init(topic) do
-		{:ok, %Topic{topic: topic} }
+		{:ok, %Mqttex.Topic{topic: topic} }
 	end
 
 
 	def handle_call({:publish, %Mqttex.Msg.Publish{message: content} = _msg, _client}, 
-				    _from, %Topic{subscriptions: subs} = state) do
+				    _from, %Mqttex.Topic{subscriptions: subs} = state) do
 		Enum.each(subs, fn({session, qos}) -> send_msg(session, content, qos) end)
 		{:reply, :ok, state}
 	end
-	def handle_call({:subscribe, client, qos}, _from, %Topic{subscriptions: subs} = state) do
+	def handle_call({:subscribe, client, qos}, _from, %Mqttex.Topic{subscriptions: subs} = state) do
 		new_state = state.subscriptions(Dict.put(subs, client, qos))
 		{:reply, qos, new_state}
 	end
-	def handle_call({:unsubscribe, client}, _from, %Topic{subscriptions: subs} = state) do
+	def handle_call({:unsubscribe, client}, _from, %Mqttex.Topic{subscriptions: subs} = state) do
 		new_subs = Dict.delete(client)
 		new_state = state.subscriptions new_subs
 		{:reply, :ok, new_state}

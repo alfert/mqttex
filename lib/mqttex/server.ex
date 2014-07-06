@@ -10,8 +10,7 @@ defmodule Mqttex.Server do
 	This approach eases implementation and testing. 
 	"""
 
-	# use Mqttex.GenFSM.Behaviour
-	use GenServer.Behaviour
+	use GenServer
 	@my_name __MODULE__
 	@default_timeout 500 # 100m milliseconds timeout 
 
@@ -21,13 +20,13 @@ defmodule Mqttex.Server do
 
 	@type state :: :clean_session | :disconnected | :clean_disconnect
 
-	defrecord ConnectionState, connection: :none, 
+	defstruct connection: :none, 
 		client_proc: :none,
 		state: :disconnected,
 		timeout: @default_timeout, 
 		subscriptions: [],
-		senders: Mqttex.ProtocolManager.new(), 
-		receivers: Mqttex.ProtocolManager.new()
+		senders: %Mqttex.ProtocolManager{}, 
+		receivers: %Mqttex.ProtocolManager{}
 
 	#### API of the server
 	@doc """
@@ -113,10 +112,9 @@ defmodule Mqttex.Server do
 		# TODO: check that the connection data is proper. Invalidity results in {:stop, error_code}, 
 		# where error_code is of type conn_ack_type
 		Lager.debug "#{__MODULE__}.init in #{inspect self} for client_proc #{inspect client_proc}"
-		queue = nil # Mqttex.OutboundQueue.start_link(self, __MODULE__)
 		{:ok, 
-			ConnectionState.new([connection: connection, client_proc: client_proc, 
-				state: :clean_session, out_queue: queue]), 
+			%Mqttex.Server{connection: connection, client_proc: client_proc, 
+				state: :clean_session}, 
 			connection.keep_alive }
 	end
 
@@ -129,7 +127,7 @@ defmodule Mqttex.Server do
 	#############################################################################################
 	#### gen Server callbacks mapped to old gen_fsm callbacks
 	#############################################################################################
-	def handle_cast(msg, s = ConnectionState[state: :clean_session]) do
+	def handle_cast(msg, s = %Mqttex.Server{state: :clean_session}) do
 		clean_session(msg, s)
 	end
 	def handle_cast(msg, s) do
@@ -137,19 +135,12 @@ defmodule Mqttex.Server do
 		{:noreply, s}
 	end
 	
-	# def handle_cast(msg, from, s = ConnectionState[state: :clean_disconnect]) do
-	# 	clean_disconnect(msg, from, s)
-	# end
-	
-	def handle_call(msg, from, s = ConnectionState[state: :clean_session]) do
+	def handle_call(msg, from, s = %Mqttex.Server{state: :clean_session}) do
 		clean_session(msg, from, s)
 	end
-	def handle_call(msg, from, s = ConnectionState[state: :clean_disconnect]) do
+	def handle_call(msg, from, s = %Mqttex.Server{state: :clean_disconnect}) do
 		clean_disconnect(msg, from, s)
 	end
-	# def handle_call(msg, from, s = ConnectionState[state: :disconnect]) do
-	# 	disconnect(msg, from, s)
-	# end
 	
 
 	#############################################################################################
@@ -157,14 +148,14 @@ defmodule Mqttex.Server do
 	#############################################################################################
 
 	@doc "Events in state `clean_session` with replies"
-	def clean_session({:send, msg}, _from, ConnectionState[client_proc: client, connection: con] = state) do
+	def clean_session({:send, msg}, _from, %Mqttex.Server{client_proc: client, connection: con} = state) do
 		# Send the message directly to the client and calculate the new timeout
 		timeout = calc_timeout(msg, state)
 		send(client, msg)
-		new_state = state.update(timeout: timeout)
+		new_state = %Mqttex.Server{state | timeout: timeout}
 		{:reply, timeout, new_state, con.keep_alive}
 	end
-	def clean_session(:ping, _from, ConnectionState[connection: con]=state) do
+	def clean_session(:ping, _from, %Mqttex.Server{connection: con} = state) do
 		{:reply, :pong, state, con.keep_alive}
 	end
 	
@@ -174,24 +165,24 @@ defmodule Mqttex.Server do
 	########################################################################################
 
 	@doc "Event in state `clean_session` without a reply"
-	def clean_session({:receive, %Mqttex.Msg.Publish{} = msg}, ConnectionState[connection: con] = state) do
+	def clean_session({:receive, %Mqttex.Msg.Publish{} = msg}, %Mqttex.Server{connection: con} = state) do
 		# initiate a new protocol for receiving a published message
 		# sending to the TopicManager is the task of the on_message callback!!!
 		new_rec = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
-		{:noreply, state.update(receivers: new_rec), state.connection.keep_alive}
+		{:noreply, %Mqttex.Server{state | receivers: new_rec}, state.connection.keep_alive}
 	end
 	def clean_session({:receive, %Mqttex.Msg.Simple{msg_type: :pub_rel}= msg}, 
-			ConnectionState[receivers: receivers] = state) do
+			%Mqttex.Server{receivers: receivers} = state) do
 		# delegate to the receivers
 		Mqttex.ProtocolManager.dispatch_receiver(receivers, msg)
 		{:noreply, state, state.connection.keep_alive}
 	end
 	def clean_session({:receive, %Mqttex.Msg.Simple{msg_type: :ping_req} = _msg}, 
-			ConnectionState[client_proc: client, connection: con]=state) do
+			%Mqttex.Server{client_proc: client, connection: con} =state) do
 		send(client, Mqttex.Msg.ping_resp)
 		{:noreply, state, con.keep_alive}
 	end
-	def clean_session({:receive, %Mqttex.Msg.Subscribe{} = topics}, ConnectionState[]=state) do
+	def clean_session({:receive, %Mqttex.Msg.Subscribe{} = topics}, %Mqttex.Server{}=state) do
 		# subscribe to topics at the subscription server
 		#   -> the server adds all existing topics 
 		# send the status of freshly subscribed topics back to the client
@@ -200,7 +191,7 @@ defmodule Mqttex.Server do
 		new_state = state
 		{:noreply, new_state, new_state.connection.keep_alive}
 	end
-	def clean_session({:receive, %Mqttex.Msg.Unsubscribe{} = topics}, ConnectionState[]=state) do
+	def clean_session({:receive, %Mqttex.Msg.Unsubscribe{} = topics}, %Mqttex.Server{}=state) do
 		# unsubscribe to topics at the subscription server
 		#   -> the server drops all existing topics 
 		
@@ -208,7 +199,7 @@ defmodule Mqttex.Server do
 		new_state = state
 		{:noreply, new_state, new_state.connection.keep_alive}
 	end
-	def clean_session({:receive, %Mqttex.Msg.Simple{msg_type: :disconnect} = _msg}, ConnectionState[]=state) do
+	def clean_session({:receive, %Mqttex.Msg.Simple{msg_type: :disconnect} = _msg}, %Mqttex.Server{}=state) do
 		# TODO: call unsubscribe all topics
 		Lager.debug("Got Disconnect, going to disconnected mode")
 		# no timeout here, we wait forever
@@ -218,33 +209,33 @@ defmodule Mqttex.Server do
 	### All messages coming from the inside and the protocol handling
 	########################################################################################
 	# a lot missing here
-	def clean_session({:publish, %Mqttex.Msg.Publish{} = msg}, ConnectionState[] = state) do
+	def clean_session({:publish, %Mqttex.Msg.Publish{} = msg}, %Mqttex.Server{} = state) do
 		# publish the message towards the client
 		# sending is delegated to the QoS protocol 
 		new_sender = Mqttex.ProtocolManager.sender(state.senders, msg, __MODULE__, self)
-		new_state = state.update(senders: new_sender)
+		new_state = %Mqttex.Server{state | senders: new_sender}
 		{:noreply, new_state, state.connection.keep_alive}
 	end
-	def clean_session({:on, msg}, ConnectionState[] = state) do
+	def clean_session({:on, msg}, %Mqttex.Server{} = state) do
 		# TODO: Send the message to the Topic Master
 		IO.puts "Yeah: Got this message #{inspect msg}"
 		{:noreply, state, state.connection.keep_alive}
 	end
-	def clean_session({:drop_receiver, msg_id}, ConnectionState[receivers: receivers] = state) do
+	def clean_session({:drop_receiver, msg_id}, %Mqttex.Server{receivers: receivers} = state) do
 		new_receiver = Mqttex.ProtocolManager.delete(state.receivers, msg_id)
-		{:noreply, state.update(receivers: new_receiver), 
+		{:noreply, %Mqttex.Server{state | receivers: new_receiver}, 
 				state.connection.keep_alive}
 	end
-	def clean_session({:drop_sender, msg_id}, ConnectionState[senders: senders] = state) do
+	def clean_session({:drop_sender, msg_id}, %Mqttex.Server{senders: senders} = state) do
 		new_sender = Mqttex.ProtocolManager.delete(state.senders, msg_id)
-		{:noreply, state.update(senders: new_sender), 
+		{:noreply, %Mqttex.Server{state | senders: new_sender}, 
 				state.connection.keep_alive}
 	end
 	
 	########################################################################################
 	### Finally: timeout - the client does not respond fast enough
 	########################################################################################
-	def clean_session(:timeout, ConnectionState[]=state) do
+	def clean_session(:timeout, %Mqttex.Server{}=state) do
 		# TODO: Publish Will Message if required
 		# TODO: call unsubscribe all topics
 
@@ -254,21 +245,21 @@ defmodule Mqttex.Server do
 	
 	
 	@doc "Reconnection with reply"
-	def clean_disconnect({:reconnect, connection, client_proc}, _from, ConnectionState[]=state) do
+	def clean_disconnect({:reconnect, connection, client_proc}, _from, %Mqttex.Server{}=state) do
 		{reply, new_state_data} = case check_connection(connection) do
 			:ok -> {{:ok, self},
-				state.update [connection: connection, client_proc: client_proc, state: :clean_session]}
+				%Mqttex.Server{state | connection: connection, client_proc: client_proc, state: :clean_session}}
 			error -> {{:error, error}, state}
 		end
 		{:reply, reply, new_state_data, new_state_data.connection.keep_alive}
 	end
-	def clean_disconnect(any_msg, _from, ConnectionState[]=state) do
+	def clean_disconnect(any_msg, _from, %Mqttex.Server{}=state) do
 		Lager.debug("Disconnected Server #{state.connection.client_id} got message #{inspect any_msg}")
 		{:noreply, state}
 	end
 
 	@doc "Received messages in the disconnected state are simply ignored"
-	def clean_disconnect(any_msg, ConnectionState[]=state) do
+	def clean_disconnect(any_msg, %Mqttex.Server{}=state) do
 		Lager.debug("Disconnected Server #{state.connection.client_id} got message #{inspect any_msg}")
 		{:noreply, state}
 	end
@@ -281,15 +272,15 @@ defmodule Mqttex.Server do
 	since the client-socket-process is linked to the server, the terminating server should
 	send the socket process an `EXIT` message resuling in an shutdown of the socket as well.
 	"""
-	def handle_event(:stop, _state, ConnectionState[subscriptions: []] = state_data) do
+	def handle_event(:stop, _state, %Mqttex.Server{subscriptions: []} = state_data) do
 		{:stop, :normal, state_data}
 	end
-	def handle_event(:stop, state, ConnectionState[] = state_data) do
+	def handle_event(:stop, state, %Mqttex.Server{} = state_data) do
 		{:next_state, state, state_data}
 	end
 
 	@doc "Terminaction call back"
-	def terminate(reason, state, ConnectionState[connection: con] = state_data) do
+	def terminate(reason, state, %Mqttex.Server{connection: con} = state_data) do
 		Lager.info "Shutting down for reason #{inspect reason} " <> 
 			"in state #{inspect state} for connection #{inspect con.client_id}"
 	end		
@@ -311,7 +302,7 @@ defmodule Mqttex.Server do
 	Calculates the new timeout depending on the last retries (in the future). 
 	The default implementation is to return a constant value.
 	"""
-	def calc_timeout(msg, ConnectionState[timeout: timeout] = _state) do
+	def calc_timeout(msg, %Mqttex.Server{timeout: timeout} = _state) do
 		timeout
 	end
 	

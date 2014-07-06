@@ -1,6 +1,7 @@
 defmodule Mqttex.SubscriberSet do
 
 	require Lager	
+	import Record
 
 	@moduledoc """
 	A library module for the set of all subscriptions. Essentially, this datastructure
@@ -67,21 +68,25 @@ defmodule Mqttex.SubscriberSet do
 	@type splitted_path ::[binary]
 	@type subscription :: { path, subscriber }
 
+	@type sroot_t :: {Mqttex.SubscriberSet, integer, nil | snode_t}
+	@type snode_t :: {:snode, [sleaf_t], Dict.t, [sleaf_t]}
+	@type sleaf_t :: {:sleaf, binary, Mqttex.qos_type}
+
 	# The data structure is a n-ary tree, walking down the path elements. 
 	defrecordp :snode, # maps topic_path elements to a list of nodes or leafs
-		hash: [] :: [sleaf_t], # list of client with a hash-subscription
-		children: HashDict.new  :: Dict.t , # maps each path-prefix to a snode
-		leafs: [] :: [sleaf_t] # list of clients 
+		hash: [], # :: [sleaf_t], # list of client with a hash-subscription
+		children: HashDict.new , # :: Dict.t , # maps each path-prefix to a snode
+		leafs: [] # :: [sleaf_t] # list of clients 
 
 	# only leafs in the tree hold the value
 	defrecordp :sleaf,
-		client_id: "" :: binary,
-		qos: :fire_and_forget :: Mqttex.qos_type
+		client_id: "", # :: binary,
+		qos: :fire_and_forget # :: Mqttex.qos_type
 
 	# the root node holds the size and the "real" root snode
 	defrecordp :sroot, Mqttex.SubscriberSet, 
-		size: 0 :: integer,
-		root: nil  :: snode_t
+		size: 0, # :: integer,
+		root: nil #  :: snode_t
 
 	@doc "Returns a new empty SubscriberSet"
 	@spec new :: subscription_set
@@ -104,7 +109,7 @@ defmodule Mqttex.SubscriberSet do
 	"""
 	@spec match(subscription_set, path) :: [subscriber]
 	def match(s = sroot(root: root), topic_path) do
-		# Lager.info "match of path #{topic_path}"
+		#Lager.info "match of path #{topic_path}"
 		p = split(topic_path)
 		do_match(root, p, []) |> List.flatten
 	end
