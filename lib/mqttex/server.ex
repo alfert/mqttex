@@ -203,7 +203,7 @@ defmodule Mqttex.Server do
 		# TODO: call unsubscribe all topics
 		Lager.debug("Got Disconnect, going to disconnected mode")
 		# no timeout here, we wait forever
-		{:noreply, state.state(:clean_disconnect)}
+		{:noreply, %Mqttex.Server{state | state: :clean_disconnect} }
 	end
 	########################################################################################
 	### All messages coming from the inside and the protocol handling
