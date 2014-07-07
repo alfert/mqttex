@@ -158,6 +158,18 @@ defmodule MqttexDecoderTest do
 		assert m.clean_session == true
 	end
 
+	test "mosquitto connect" do
+		# This is the connect string from mosquitto_sub -p 1178 -t "#"
+		# header = <<16, 36>>
+		header = <<16>> # the length 36 is added by calling `message`
+		payload = [0, 6, 77, 81, 73, 115, 100, 112, 0x03, 0x02, 0x00, 60,] ++
+			[0, 22, 109, 111, 115, 113, 95, 115, 117, 98, 95, 51, 53, 52, 
+				56, 95, 102, 114, 97, 110, 48, 52, 53, 51]
+		m = message(header, payload)
+		assert %Mqttex.Msg.Connection{} = m
+		IO.inspect m
+	end
+
 	test "extract work with bits instead of booleans" do
 		<<flag :: size(1), _ :: size(7)>> = <<0xff>>
 		assert {"hallo", _} = Mqttex.Decoder.extract(flag, ["hallo"])
