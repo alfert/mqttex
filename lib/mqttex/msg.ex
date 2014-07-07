@@ -102,8 +102,8 @@ defmodule Mqttex.Msg do
 	
 	@doc "Creates a new publish message. The message id is not set per default."
 	def publish(topic, message, qos, msg_id \\ 0) do
-		length = size(message) + 
-		         size(topic) + 2 + # with 16 bit size of topic
+		length = byte_size(message) + 
+		         byte_size(topic) + 2 + # with 16 bit size of topic
 		         2 # 16 bit message id
 		h = fixed_header(:publish, false, qos, false, length)
 		%Publish{topic: topic, message: message, msg_id: msg_id, header: h}
@@ -132,7 +132,7 @@ defmodule Mqttex.Msg do
 	@spec unsubscribe([binary], pos_integer) :: Unsubscribe.t
 	def unsubscribe(topics, msg_id \\ 0) do
 		length = 2 + #  16 bit message id
-			(topics |> Enum.map(fn(t) -> size(t) + 2 end) |> Enum.sum)
+			(topics |> Enum.map(fn(t) -> byte_size(t) + 2 end) |> Enum.sum)
 		h = fixed_header(:unsubscribe, false, :at_least_once, false, length)
 		%Unsubscribe{topics: topics, msg_id: msg_id, header: h}
 	end
@@ -178,7 +178,7 @@ defmodule Mqttex.Msg do
 
 	def subscribe(topics, msg_id \\ 0) when is_integer(msg_id) do
 		length = 2 + # 16 bit message id
-			(topics |> Enum.map(fn({t,q}) -> size(t) + 3 # + 16 bit length + 1 byte qos
+			(topics |> Enum.map(fn({t,q}) -> byte_size(t) + 3 # + 16 bit length + 1 byte qos
 				end) |> Enum.sum)
 		h = fixed_header(:subscribe, false, :at_least_once, false, length)
 		%Subscribe{msg_id: msg_id, topics: topics, header: h}
@@ -208,11 +208,11 @@ defmodule Mqttex.Msg do
 	def connection(client_id, user_name, password, clean_session, keep_alive \\ :infinity, # keep_alive_server \\ :infinity, 
 			last_will \\ false, will_qos \\ :fire_and_forget, will_retain \\ false, will_topic \\ "", will_message \\ "") do
 		length = 12 +  # variable header size 
-			size(client_id) + 2 + 
-			size(will_topic) + 2 +
-			size(will_message) + 2 +
-			size(user_name) + 2 +
-			size(password) + 2
+			byte_size(client_id) + 2 + 
+			byte_size(will_topic) + 2 +
+			byte_size(will_message) + 2 +
+			byte_size(user_name) + 2 +
+			byte_size(password) + 2
 		h = fixed_header(:subscribe, false, :fire_and_forget, false, length)
 		%Connection{client_id: client_id, user_name: user_name, password: password, 
 			keep_alive: keep_alive, last_will: last_will, will_qos: will_qos, 
