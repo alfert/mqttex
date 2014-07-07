@@ -2,7 +2,7 @@ defmodule Mqttex.Decoder do
 	@moduledoc """
 	Decoding and encoding of MQTT messages.
 	"""
-
+	require Lager
 	use Bitwise
 
 	@type next_byte_fun :: (() -> {binary, next_byte_fun})
@@ -13,6 +13,7 @@ defmodule Mqttex.Decoder do
 	# @type decode(binary, next_byte_fun, read_message_fun) :: all_message_types
 	def decode(msg = <<_m :: size(16)>>, readByte, readMsg) do
 		header = decode_fixheader(msg, readByte)
+		Lager.info ("Header = #{inspect header}")
 		var_m = readMsg.(header.length)
 		decode_message(var_m, header)
 	end
