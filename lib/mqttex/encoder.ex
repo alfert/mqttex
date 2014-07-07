@@ -5,24 +5,46 @@ defmodule Mqttex.Encoder do
 
 	def encode(%Mqttex.Msg.Simple{msg_type: type}) when type in [:ping_req, :ping_resp, :disconnect],
 		do: <<msg_type_to_binary(type) :: size(4), 0 :: size(4), 0x00>>
-	def encode(%Mqttex.Msg.Simple{msg_type: type, msg_id: msg_id}) 
+	def encode(%Mqttex.Msg.Simple{msg_type: type, msg_id: id}) 
 		when type in [:pub_ack, :pub_rec, :pub_comp, :unsub_ack], 
-		do: <<msg_type_to_binary(type) :: size(4), 0 :: size(4), 0x02, msg_id :: size(16)>>
-	
+		do: <<msg_type_to_binary(type) :: size(4), 0 :: size(4), 0x02, msg_id(id)>>
+	def encode(%Mqttex.Msg.ConnAck{status: status}), 
+		do: <<msg_type_to_binary(:conn_ack) :: size(4), 0 :: size(4), 0x02, 0x00, conn_ack_status(status)>>
+	def encode(%Mqttex.Msg.PubRel{msg_id: id, duplicate: dup}), 
+		do: <<encode_header(:pub_rel, dup), msg_id(id)>>
+	def encode(%Mqttex.Msg.Publish{msg_id: id, header: header, topic: topic, message: message}), 
+		do: <<encode_header(header), utf8(topic), msg_id(id), utf8(message)>>
+	def encode(%Mqttex.Msg.Subscribe{msg_id: id, header: header, topics: topics}),
+		do: <<encode_header(header), msg_id(id), 
+			topics |> Enum.map_join(fn({t, q}) -> utf8(t) <> qos_binary(q) end)>>
+	def encode(%Mqttex.Msg.SubAck{msg_id: id, header: header, granted_qos: qos}), 
+		do: <<encode_header(header), msg_id(id), qos |> Enum.join_map &qos_binary/1 >>
+	def encode(%Mqttex.Msg.Unsubscribe{msg_id: id, header: header, topics: topics}),
+		do: <<encode_header(header), msg_id(id), topics |> Enum.join_map &utf8/1 >>
+	def encode(%Mqttex.Msg.Connection{header: header, client_id: client_id, user_name: user, password: passwd, 
+			keep_alive: keep_alive} = con) do
+		h = <<encode_header(header), 0x00, 0x06, "MQIsdp", 0x03>>
+		flags = <<(user != "") :: size(1), (passwd != "") :: size(1), con.will_retain :: size(1), 
+			qos_binary(con.will_qos) :: size(2), con.last_will :: size(1), con.clean_session :: size(1), 
+			0 :: size(1), 
+			keep_alive(keep_alive) :: [size(16), big]>>
+		payload = <<utf8(client_id), utf8(con.will_topic), utf8(con.will_message), utf8(user), utf8(passwd)>>
+		<<h, flags, payload>>
+	end
 	def encode(any) do
 		IO.inspect any	
 	end
 	
 
 
-	#######################################
-	###
-	### PUB_REL can be duped, so it is not a SImpleMessage!
-	###
-	#######################################
-
-
 	@doc "Returns the one byte fixed header and the length encoding"
+	def encode_header(:pub_rel, dup)do
+		<<msg_type_to_binary(:pub_rel) :: size(4),
+			boolean_to_binary(dup) :: bits, 
+			qos_binary(:at_least_once) :: size(2), 
+			boolean_to_binary(false) :: bits, 
+			encode_length(2) :: binary>>
+	end
 	def encode_header(%Mqttex.Msg.FixedHeader{message_type: type, duplicate: dup, 
 			retain: retain, qos: qos, length: length}) do
 		<<msg_type_to_binary(type) :: size(4),
@@ -31,8 +53,14 @@ defmodule Mqttex.Encoder do
 			boolean_to_binary(retain) :: bits, 
 			encode_length(length) :: binary>>
 	end
+
+	def utf8(""), do: ""	
+	def utf8(str), do: <<byte_size(str) :: [big, size(16)]>> <> str	
+	def msg_id(id), do: <<id :: [big, size(16)]>>
 	
-	
+	def keep_alive(:infinity), do: <<0 :: size(16)>>
+	def keep_alive(n), do: <<n :: [size(16), big]>>
+
 	def encode_length(0), do: <<0x00>>
 	def encode_length(l) when l <= 268_435_455, do: encode_length(l, <<>>)
 	defp encode_length(0, acc), do: acc
@@ -75,5 +103,11 @@ defmodule Mqttex.Encoder do
 	def msg_type_to_binary(:disconnect),  do: 14
 	def msg_type_to_binary(:reserved),    do: 0
 
-
+	def conn_ack_status(:ok),                            do: 0
+	def conn_ack_status(:unaccaptable_protocol_version), do: 1
+	def conn_ack_status(:identifier_rejected),           do: 2
+	def conn_ack_status(:server_unavailable),            do: 3
+	def conn_ack_status(:bad_user),                      do: 4
+	def conn_ack_status(:not_authorized),                do: 5
+	
 end
