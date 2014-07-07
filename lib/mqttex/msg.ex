@@ -213,7 +213,7 @@ defmodule Mqttex.Msg do
 			byte_size(will_message) + 2 +
 			byte_size(user_name) + 2 +
 			byte_size(password) + 2
-		h = fixed_header(:subscribe, false, :fire_and_forget, false, length)
+		h = fixed_header(:connect, false, :fire_and_forget, false, length)
 		%Connection{client_id: client_id, user_name: user_name, password: password, 
 			keep_alive: keep_alive, last_will: last_will, will_qos: will_qos, 
 			will_retain: will_retain, will_topic: will_topic, 
