@@ -41,7 +41,7 @@ defmodule Mqttex.TCP do
 	"""
 	def start_client(server, port, client) do
 		{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 0}, {:active, false}])
-		loop(socket, client, Mqttex.Client)
+		passive_loop(socket, client, Mqttex.Client)
 	end
 	
 
@@ -51,7 +51,7 @@ defmodule Mqttex.TCP do
 	def start_channel(%Mqttex.Client.Connection{server: server, port: port} = _con, client) do
 		looper = fn() -> 
 				{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 0}, {:active, false}])
-				loop(socket, client, Mqttex.Client)
+				passive_loop(socket, client, Mqttex.Client)
 			end
 		spawn_link(looper)
 	end
@@ -81,7 +81,7 @@ defmodule Mqttex.TCP do
 						passive_loop(socket, server, mod)
 				end
 			{:error, reason} ->
-				Lager.warn("passive loop error: #{inspect reason}")
+				Lager.info("passive loop error: #{inspect reason}")
 				{:error, reason}
 		end
 	end
@@ -139,6 +139,7 @@ defmodule Mqttex.TCP do
 	end
 
 	@doc "Reads bytes from the socket and crashes if problems occur"
+	def read_bytes(socket, 0), do: ""
 	def read_bytes(socket, nr) do
 		case :gen_tcp.recv(socket, nr) do
 				{:ok, bytes} -> bytes
