@@ -17,9 +17,9 @@ defmodule Mqttex.TCP do
 	end
 	
 	def start_server(port) do
-		{:ok, listen} = :gen_tcp.listen(port, [:binary, {:packet, 4},
+		{:ok, listen} = :gen_tcp.listen(port, [:binary, {:packet, 0},
 											 {:reuseaddr, true},	
-											 {:active, true}])
+											 {:active, false}])
 		Lager.info("Mqttex.Server at port #{port} is listening")
 		spawn(fn() -> spawn_acceptor(listen) end)
 	end
@@ -30,7 +30,7 @@ defmodule Mqttex.TCP do
 			{:ok, socket} -> 
 				Lager.info("Mqttex.Server has accepted and spawns new acceptor")
 				spawn(fn() -> spawn_acceptor(listen) end)
-				loop(socket, :nil, Mqttex.Server)				
+				passive_loop(socket, :nil, Mqttex.Server)				
 			any -> Lager.info("accecpt returned #{inspect any} - finishing now")
 		end
 	end
@@ -40,7 +40,7 @@ defmodule Mqttex.TCP do
 	is `client`.
 	"""
 	def start_client(server, port, client) do
-		{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 4}])
+		{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 0}, {:active, false}])
 		loop(socket, client, Mqttex.Client)
 	end
 	
@@ -50,12 +50,41 @@ defmodule Mqttex.TCP do
 	"""
 	def start_channel(%Mqttex.Client.Connection{server: server, port: port} = _con, client) do
 		looper = fn() -> 
-				{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 4}])
+				{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 0}, {:active, false}])
 				loop(socket, client, Mqttex.Client)
 			end
 		spawn_link(looper)
 	end
 	
+
+	def passive_loop(socket, server, mod) do
+		Lager.info("passive_loop #{inspect self} for #{inspect socket} and process #{inspect server} with module #{mod}")
+		receive do
+			%{} = msg -> 
+				Lager.info("passive_loop #{inspect self}: Socket #{inspect socket} sends message #{inspect msg}")
+				enc_msg = Mqttex.Encoder.encode(msg)
+				Lager.info("passive_loop #{inspect self}: encoded message: #{inspect enc_msg}")
+				:gen_tcp.send(socket, enc_msg)
+			after 0 -> :ok # receive only something, if it is already there.
+		end
+		case :gen_tcp.recv(socket, 2) do
+			{:ok, msg_start} -> 
+				Lager.info("passive_loop #{inspect self}: Socket recv 2 bytes: #{inspect msg_start}")
+				msg = Mqttex.Decoder.decode(msg_start, read_byte(socket), &(read_bytes(socket, &1)))
+				Lager.info("passive_loop #{inspect self}: Socket (unpacked) #{inspect msg}")
+				case msg do
+					%Mqttex.Msg.Connection{} = con -> 
+						server_pid = do_connect(socket, con, mod)
+						passive_loop(socket, server_pid, mod)
+					_ ->
+						mod.receive(server, msg)
+						passive_loop(socket, server, mod)
+				end
+			{:error, reason} ->
+				Lager.warn("passive loop error: #{inspect reason}")
+				{:error, reason}
+		end
+	end
 
 	@doc """
 	Socket loop
@@ -70,7 +99,8 @@ defmodule Mqttex.TCP do
 				# call the server
 				case str do
 					%Mqttex.Msg.Connection{} = con -> 
-						do_connect(socket, con, mod)
+						server_pid = do_connect(socket, con, mod)
+						loop(socket, server_pid, mod)
 					_ ->
 						mod.receive(server, str)
 						loop(socket, server, mod)
@@ -94,8 +124,24 @@ defmodule Mqttex.TCP do
 		case Mqttex.Server.connect(con, self) do
 			{msg, server_pid} -> 
 				send(self, msg)	
-				loop(socket, server_pid, mod)
+				server_pid
 			error -> :gen_tcp.send(socket, :erlang.term_to_binary(error))
+		end
+	end
+
+	@doc "Returns a function that reads a single byte from the socket and crashes if problems occur"
+	def read_byte(socket) do
+		fn -> 
+			case :gen_tcp.recv(socket, 1) do
+				{:ok, byte} -> {byte, read_byte(socket)}
+			end
+		end
+	end
+
+	@doc "Reads bytes from the socket and crashes if problems occur"
+	def read_bytes(socket, nr) do
+		case :gen_tcp.recv(socket, nr) do
+				{:ok, bytes} -> bytes
 		end
 	end
 
