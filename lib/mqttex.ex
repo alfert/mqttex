@@ -13,7 +13,7 @@ defmodule Mqttex do
 
   	def start_client() do
   		IO.puts "Connecting client"
-  		con = Mqttex.Client.Connection.new(server: {127, 0, 0, 1}, module: Mqttex.TCP)
+  		con = %Mqttex.Client.Connection{server: {127, 0, 0, 1}, module: Mqttex.TCP}
   		{:ok, client} = Mqttex.Client.connect("any user", "passwd", self, con)
   		IO.puts("Wating for ConnAck")
   		receive do
