@@ -209,10 +209,11 @@ defmodule Mqttex.Msg do
 			last_will \\ false, will_qos \\ :fire_and_forget, will_retain \\ false, will_topic \\ "", will_message \\ "") do
 		length = 12 +  # variable header size 
 			byte_size(client_id) + 2 + 
-			byte_size(will_topic) + 2 +
-			byte_size(will_message) + 2 +
-			byte_size(user_name) + 2 +
-			byte_size(password) + 2
+			optional_size(user_name) +
+			optional_size(password) + 
+			if (last_will) do 
+				byte_size(will_topic) + 2 + byte_size(will_message) + 2
+			else 0 end
 		h = fixed_header(:connect, false, :fire_and_forget, false, length)
 		%Connection{client_id: client_id, user_name: user_name, password: password, 
 			keep_alive: keep_alive, last_will: last_will, will_qos: will_qos, 
@@ -220,5 +221,7 @@ defmodule Mqttex.Msg do
 			will_message: will_message, clean_session: clean_session, header: h }
 	end
 	
+	def optional_size(""), do: 0
+	def optional_size(bytes), do: 2 + byte_size(bytes)
 
 end

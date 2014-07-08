@@ -7,13 +7,13 @@ defmodule Mqttex.Encoder do
 		do: <<msg_type_to_binary(type) :: size(4), 0 :: size(4), 0x00>>
 	def encode(%Mqttex.Msg.Simple{msg_type: type, msg_id: id}) 
 		when type in [:pub_ack, :pub_rec, :pub_comp, :unsub_ack], 
-		do: <<msg_type_to_binary(type) :: size(4), 0 :: size(4), 0x02, msg_id(id)>>
+		do: <<msg_type_to_binary(type) :: size(4), 0 :: size(4), 0x02, msg_id(id) :: binary>>
 	def encode(%Mqttex.Msg.ConnAck{status: status}), 
 		do: <<msg_type_to_binary(:conn_ack) :: size(4), 0 :: size(4), 0x02, 0x00, conn_ack_status(status)>>
 	def encode(%Mqttex.Msg.PubRel{msg_id: id, duplicate: dup}), 
-		do: <<encode_header(:pub_rel, dup), msg_id(id)>>
+		do: <<encode_header(:pub_rel, dup), msg_id(id) :: binary>>
 	def encode(%Mqttex.Msg.Publish{msg_id: id, header: header, topic: topic, message: message}), 
-		do: <<encode_header(header), utf8(topic), msg_id(id), utf8(message)>>
+		do: <<encode_header(header), utf8(topic), msg_id(id) :: binary, utf8(message)>>
 	def encode(%Mqttex.Msg.Subscribe{msg_id: id, header: header, topics: topics}),
 		do: <<encode_header(header), msg_id(id), 
 			topics |> Enum.map_join(fn({t, q}) -> utf8(t) <> qos_binary(q) end)>>
@@ -22,14 +22,25 @@ defmodule Mqttex.Encoder do
 	def encode(%Mqttex.Msg.Unsubscribe{msg_id: id, header: header, topics: topics}),
 		do: <<encode_header(header), msg_id(id), topics |> Enum.join_map &utf8/1 >>
 	def encode(%Mqttex.Msg.Connection{header: header, client_id: client_id, user_name: user, password: passwd, 
-			keep_alive: keep_alive} = con) do
-		h = <<encode_header(header), 0x00, 0x06, "MQIsdp", 0x03>>
-		flags = <<(user != "") :: size(1), (passwd != "") :: size(1), con.will_retain :: size(1), 
-			qos_binary(con.will_qos) :: size(2), con.last_will :: size(1), con.clean_session :: size(1), 
-			0 :: size(1), 
-			keep_alive(keep_alive) :: [size(16), big]>>
-		payload = <<utf8(client_id), utf8(con.will_topic), utf8(con.will_message), utf8(user), utf8(passwd)>>
-		<<h, flags, payload>>
+			keep_alive: keep_alive, last_will: last_will} = con) do
+		h = <<encode_header(header) :: binary, 0x00, 0x06, "MQIsdp", 0x03>>
+		flags = << 
+			boolean_to_binary(user != "") :: bits, 
+			boolean_to_binary(passwd != "") :: bits, 
+			boolean_to_binary(con.will_retain) :: bits, 
+ 			qos_binary(con.will_qos) :: size(2), 
+			boolean_to_binary(con.last_will) :: bits, 
+			boolean_to_binary(con.clean_session) :: bits, 
+			0 :: size(1)
+			>> <> 
+			keep_alive(keep_alive) # :: binary>>
+		fields = [client_id ] ++
+			if last_will do [con.will_topic, con.will_message] else [] end ++
+			if (user != "") do [user] else [] end ++
+			if (passwd != "") do [passwd] else [] end 
+		# payload = [client_id, con.will_topic, con.will_message, user, passwd] |> Enum.map_join &utf8/1 
+		payload = fields |> Enum.map_join &utf8/1 
+		Enum.join([h, flags, payload])
 	end
 	def encode(any) do
 		IO.inspect any	
@@ -54,9 +65,9 @@ defmodule Mqttex.Encoder do
 			encode_length(length) :: binary>>
 	end
 
-	def utf8(""), do: ""	
 	def utf8(str), do: <<byte_size(str) :: [big, size(16)]>> <> str	
-	def msg_id(id), do: <<id :: [big, size(16)]>>
+
+	def msg_id(id) when is_integer(id), do: <<id :: [big, size(16)]>>
 	
 	def keep_alive(:infinity), do: <<0 :: size(16)>>
 	def keep_alive(n), do: <<n :: [size(16), big]>>

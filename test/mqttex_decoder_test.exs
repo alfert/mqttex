@@ -170,6 +170,22 @@ defmodule MqttexDecoderTest do
 		IO.inspect m
 	end
 
+	test "Encode/Decode connect message" do
+		connect = Mqttex.Msg.connection("client Nr. 1", "", "", true)
+		IO.puts "connect = #{inspect connect}"
+		m = Mqttex.Encoder.encode(connect)
+		assert is_binary(m)
+		
+		IO.puts "encoded connect = #{inspect m}"
+
+		<<header :: [binary, size(1)], l :: [integer, size(8)], msg :: binary>> = m
+		assert connect.header.length == byte_size(msg)
+		enc_msg = message(header, :binary.bin_to_list(msg))
+
+		assert  connect == enc_msg
+	end
+
+
 	test "extract work with bits instead of booleans" do
 		<<flag :: size(1), _ :: size(7)>> = <<0xff>>
 		assert {"hallo", _} = Mqttex.Decoder.extract(flag, ["hallo"])

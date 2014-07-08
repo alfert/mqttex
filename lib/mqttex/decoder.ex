@@ -15,6 +15,7 @@ defmodule Mqttex.Decoder do
 		header = decode_fixheader(msg, readByte)
 		Lager.info ("Header = #{inspect header}")
 		var_m = readMsg.(header.length)
+		Lager.info("decoding remaing messages #{inspect var_m}")
 		decode_message(var_m, header)
 	end
 
@@ -86,7 +87,9 @@ defmodule Mqttex.Decoder do
 		{user_name, payload} = extract(user_flag, payload)
 		{password, payload} = extract(pass_flag, payload)
 
-		Mqttex.Msg.connection(client_id, user_name, password, clean == 1, keep_alive,
+		alive = if (keep_alive == 0) do :infinity else keep_alive end		
+
+		Mqttex.Msg.connection(client_id, user_name, password, clean == 1, alive,
 			w_flag == 1, binary_to_qos(w_qos), w_retain == 1, will_topic, will_message)
 	end
 

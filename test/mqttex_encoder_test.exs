@@ -49,4 +49,10 @@ defmodule MqttexEncoderTest do
 		assert Mqttex.Encoder.encode(Mqttex.Msg.pub_comp(22)) == <<0x70, 0x02, 0x00, 22>>
 	end
 
+	test "connect message" do
+		connect = Mqttex.Msg.connection("client Nr. 1", "", "", true)
+		assert Mqttex.Encoder.encode(connect) == <<16, 26, 0, 6, "MQIsdp", 3, 
+			2, 0, 0, 0, 12, "client Nr. 1">>
+	end
+
 end
