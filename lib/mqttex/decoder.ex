@@ -48,7 +48,10 @@ defmodule Mqttex.Decoder do
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsubscribe}), do: decode_unsubscribe(msg)
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :sub_ack}), do: decode_sub_ack(msg)
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :connect}), do: decode_connect(msg)
-	
+	def decode_message(<<_reserved :: [bytes, size(1)], status :: [integer, size(8)]>>, 
+		h = %Mqttex.Msg.FixedHeader{message_type: :conn_ack}), 
+		do: Mqttex.Msg.conn_ack(conn_ack_status(status))
+		
 
 
 	@spec decode_publish(binary, Mqttex.Msg.FixedHeader.t) :: Mqttex.Msg.Publish.t
@@ -195,5 +198,13 @@ defmodule Mqttex.Decoder do
 	def binary_to_msg_type(14), do: :disconnect
 	def binary_to_msg_type(0), do: :reserved
 	def binary_to_msg_type(15), do: :reserved
+
+	def conn_ack_status(0), do: :ok
+	def conn_ack_status(1), do: :unaccaptable_protocol_version
+	def conn_ack_status(2), do: :identifier_rejected
+	def conn_ack_status(3), do: :server_unavailable
+	def conn_ack_status(4), do: :bad_user
+	def conn_ack_status(5), do: :not_authorized
+	
 	
 end

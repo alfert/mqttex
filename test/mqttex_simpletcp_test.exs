@@ -2,14 +2,13 @@ defmodule MqttexSimpleTCPTest do
 	use ExUnit.Case
 	import Mqttex.Test.Tools
 
-  test "Environment is ok" do
-    # env data for the application :mqttex is available
-    assert {:ok, 1178} == :application.get_env(:mqttex, :port)
+	test "Environment is ok" do
+	    # env data for the application :mqttex is available
+	    assert {:ok, 1178} == :application.get_env(:mqttex, :port)
 
-    # Obviously, we are not in the application :mqttex
-    assert :undefined == :application.get_env(:port)
-    
-  end
+	    # Obviously, we are not in the application :mqttex
+	    assert :undefined == :application.get_env(:port) 
+	end
 
 	test "Basic TCP connections work" do
 		server = Mqttex.TCP.start_server
