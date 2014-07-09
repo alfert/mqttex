@@ -19,6 +19,7 @@ defmodule Mqttex.TCP do
 	def start_server(port) do
 		{:ok, listen} = :gen_tcp.listen(port, [:binary, {:packet, 0},
 											 {:reuseaddr, true},	
+											 {:nodelay, true},
 											 {:active, false}])
 		Lager.info("Mqttex.Server at port #{port} is listening")
 		spawn(fn() -> spawn_acceptor(listen) end)
@@ -61,16 +62,16 @@ defmodule Mqttex.TCP do
 		Lager.info("passive_loop #{inspect self} for #{inspect socket} and process #{inspect server} with module #{mod}")
 		receive do
 			%{} = msg -> 
-				Lager.info("passive_loop #{inspect self}: Socket #{inspect socket} sends message #{inspect msg}")
+				Lager.info("passive_loop #{inspect self}: Socket #{inspect socket} got message #{inspect msg}")
 				enc_msg = Mqttex.Encoder.encode(msg)
 				Lager.info("passive_loop #{inspect self}: encoded message: #{inspect enc_msg}")
-				:gen_tcp.send(socket, enc_msg)
+				:ok = :gen_tcp.send(socket, enc_msg)
 			after 0 -> :ok # receive only something, if it is already there.
 		end
 		case :gen_tcp.recv(socket, 2) do
 			{:ok, msg_start} -> 
 				Lager.info("passive_loop #{inspect self}: Socket recv 2 bytes: #{inspect msg_start}")
-				msg = Mqttex.Decoder.decode(msg_start, read_byte(socket), &(read_bytes(socket, &1)))
+				msg = Mqttex.Decoder.decode(msg_start, read_byte(socket), fn n -> read_bytes(socket, n)end)
 				Lager.info("passive_loop #{inspect self}: Socket (unpacked) #{inspect msg}")
 				case msg do
 					%Mqttex.Msg.Connection{} = con -> 
@@ -134,6 +135,7 @@ defmodule Mqttex.TCP do
 		fn -> 
 			case :gen_tcp.recv(socket, 1) do
 				{:ok, byte} -> {byte, read_byte(socket)}
+				{:error, reason} -> Lager.error("read_byte: receiving 1 byte failed with #{inspect reason}")
 			end
 		end
 	end
@@ -141,9 +143,16 @@ defmodule Mqttex.TCP do
 	@doc "Reads bytes from the socket and crashes if problems occur"
 	def read_bytes(socket, 0), do: ""
 	def read_bytes(socket, nr) do
-		case :gen_tcp.recv(socket, nr) do
-				{:ok, bytes} -> bytes
+		Lager.info ("read_bytes: #{nr} bytes from socket #{inspect socket}")
+		result = case :gen_tcp.recv(socket, nr) do
+			{:ok, bytes} -> bytes
+			# {:error, reason} -> Lager.error("read_bytes: receiving #{nr} bytes failed with #{inspect reason}")
+			any -> 
+				Lager.error("Received a strange message: #{inspect any}")
+				any
 		end
+		Lager.info("read_bytes: result = #{inspect result}")
+		result
 	end
 
 end
