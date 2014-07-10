@@ -82,7 +82,7 @@ defmodule Mqttex.TCP do
 						passive_loop(socket, server, mod)
 				end
 			{:error, reason} ->
-				Lager.info("passive loop error: #{inspect reason}")
+				Lager.info("passive loop #{inspect self}: got error: #{inspect reason}")
 				{:error, reason}
 		end
 	end
