@@ -150,9 +150,7 @@ defmodule Mqttex.ProtocolManager do
 	## API is based on Dict.Behaviour
 	#################################################################################
 
-	def new() do
-		PMState.new
-	end
+	def new(), do: %Mqttex.ProtocolManager{} 
 	
 	@doc """
 	Stores a new process at the given `msg_id` and calculates the next new `msg_id. 
@@ -179,7 +177,7 @@ defmodule Mqttex.ProtocolManager do
 	end
 
 	# unlike Dict.Behaviour 
-	@spec update(ProtocolManager.t, integer, pid) :: PMState
+	@spec update(ProtocolManager.t, integer, pid) :: ProtocolManager.t
 	def update(%Mqttex.ProtocolManager{transfers: transfers} = state, key, initial) do
 		new_trans = Dict.update(transfers, key, initial)
 		%Mqttex.ProtocolManager{state | transfers: new_trans}
