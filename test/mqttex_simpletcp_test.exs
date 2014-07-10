@@ -1,6 +1,7 @@
 defmodule MqttexSimpleTCPTest do
 	use ExUnit.Case
 	import Mqttex.Test.Tools
+	require Lager
 
 	test "Environment is ok" do
 	    # env data for the application :mqttex is available
@@ -110,5 +111,70 @@ defmodule MqttexSimpleTCPTest do
 		# Client shall be down
 		refute Process.alive? client
 	end
+
+	########################
+	#### Define an end2end Test with 
+	#### 2 clients, 1 server
+	#### a publish and a subscribe
+	#### to show that messages arrive at the subscriber
+	########################
+	
+	test "TCP connection, subscribe and publishing works" do
+		Lager.info("Subscribe test starts")
+		server = Mqttex.TCP.start_server
+		assert is_pid(server)
+		serverRef = Process.monitor server
+
+		tester = self()
+
+		con = Mqttex.Client.new_connection({127, 0, 0, 1}, Mqttex.TCP)
+		{:ok, sub} = Mqttex.Client.connect("client-sub", "any user", "passwd", 
+			spawn_link(fn -> transmitter(:sub, tester) end), con)
+		assert is_pid(sub)
+
+		# Waiting for ConnAck
+		assert_receive({:sub, %Mqttex.Msg.ConnAck{status: :ok}}, 2_000, "Still no ConnAck :-(")
+
+		# Subscribe to topic `topic`
+		:ok = Mqttex.Client.subscribe(sub, [{"topic", :fire_and_forget}])
+
+		{:ok, pub} = Mqttex.Client.connect("client-pub", "any user", "passwd", 
+			spawn_link(fn -> transmitter(:pub, tester) end), con)
+		assert is_pid(pub)
+
+		# Waiting for ConnAck
+		assert_receive({:pub, %Mqttex.Msg.ConnAck{status: :ok}}, 1_000, "Still no ConnAck :-(")
+			
+		# Publishing Hello
+		:ok = Mqttex.Client.publish(pub, "topic", "Hello", :fire_and_forget)
+
+		# Waiting
+
+		# Sleep sometime such that the ping mechanisms starts to work
+		sleep(2_000)
+
+		# Disconnecting pub & sub
+		Mqttex.Client.disconnect(pub)
+		Mqttex.Client.disconnect(sub)
+
+		# Server shall go down
+		assert :ok == wait_for_shutdown(serverRef)
+		refute Process.alive? server
+
+		# Clients shall be down
+		refute Process.alive? sub
+		refute Process.alive? pub
+	end
+
+	# a process which sends all received messages to `target` but prefixed with `prefix`
+	def transmitter(prefix, target) do
+		receive do
+			msg -> 
+				Lager.info ("Transmitter #{inspect prefix} got message #{inspect msg} for target #{inspect target}")
+				send(target, {prefix, msg})
+				transmitter(prefix, target)
+		end
+	end
+	
 
 end
