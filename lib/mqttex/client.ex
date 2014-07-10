@@ -51,8 +51,8 @@ defmodule Mqttex.Client do
 	TODO: Will messages, clean connection? 
 	"""
 	@spec connect(binary, binary, pid, Connection.t | pid ) :: {:ok, term} | {:error, term} | :ignore
-	def connect(username, password, callback_proc, network_channel) do
-		connection = Mqttex.Msg.connection("client #{inspect self}", username, password, true)
+	def connect(client_id \\ "#{inspect self}", username, password, callback_proc, network_channel) do
+		connection = Mqttex.Msg.connection(client_id, username, password, true)
 		Mqttex.SupClient.start_client(connection, callback_proc, network_channel)
 	end
 
@@ -68,14 +68,15 @@ defmodule Mqttex.Client do
 	Subscribes to the list of topics.
 	"""
 	def subscribe(server, topics) do
-		
+		msg = Mqttex.Msg.subscribe(topics)
+		:gen_server.cast(server, {:subscribe, msg})
 	end
 	
 	@doc """
 	Unsubscribes to a list of topics.
 	"""
 	def unsubscribe(server, topics) do
-		
+		:not_implemented_yet
 	end
 
 
@@ -137,6 +138,10 @@ defmodule Mqttex.Client do
 		send(client, msg)
 		{:noreply, state, state.timeout}
 	end
+	def handle_cast({:subscribe, msg}, %Mqttex.Client{senders: senders} = state) do
+		new_sender = Mqttex.ProtocolManager.sender(state.senders, msg, __MODULE__, self)
+		{:noreply, %Mqttex.Client{state | senders: new_sender}, state.timeout}
+	end
 	def handle_cast({:receive, %Mqttex.Msg.Publish{} = msg}, state) do 
 		new_receiver = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
 		{:noreply, %Mqttex.Client{state | receivers: new_receiver}, state.timeout}
@@ -149,6 +154,7 @@ defmodule Mqttex.Client do
 	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_rec} = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_comp} = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, %Mqttex.Msg.PubRel{}  = msg}, state), do: dispatch_receiver(msg, state)
+	def handle_cast({:receive, msg = %Mqttex.Msg.SubAck{}}, state), do:  dispatch_receiver(msg, state)
 	def handle_cast({:receive, msg = %Mqttex.Msg.ConnAck{}}, state) do
 		:ok = on_message(self, msg)
 		{:noreply, state, state.timeout}
@@ -215,9 +221,7 @@ defmodule Mqttex.Client do
 	def receive(server, %Mqttex.Msg.Publish{}= msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.PubRel{}= msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Simple{}= msg), do: do_receive(server, msg)
-	# def receive(server, Mqttex.PubRecMsg[]= msg), do: do_receive(server, msg)
-	# def receive(server, Mqttex.PubCompMsg[]= msg), do: do_receive(server, msg)
-	# def receive(server, Mqttex.PingRespMsg[]= msg), do: do_receive(server, msg)
+	def receive(server, %Mqttex.Msg.SubAck{}= msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.ConnAck{}= msg), do: do_receive(server, msg)
 	
 	defp do_receive(server, msg) do
