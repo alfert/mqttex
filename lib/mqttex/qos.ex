@@ -54,19 +54,19 @@ defmodule Mqttex.SenderBehaviour do
 	defmacro __using__(_) do
     	quote location: :keep do
     		def send_msg(queue, msg) do
-    			:error_logger.error_msg("Not implemted: #{__MODULE__}.send_msg(#{inspect queue}, #{inspect msg}")
+    			:error_logger.error_msg("Not implemented: #{__MODULE__}.send_msg(#{inspect queue}, #{inspect msg}")
     		end
 
     		def send_complete(queue, msg) do
-    			:error_logger.error_msg("Not implemted: #{__MODULE__}.send_complete(#{inspect queue}, #{inspect msg}")
+    			:error_logger.error_msg("Not implemented: #{__MODULE__}.send_complete(#{inspect queue}, #{inspect msg}")
     		end
 
     		def send_release(queue, msg) do
-    			:error_logger.error_msg("Not implemted: #{__MODULE__}.send_release(#{inspect queue}, #{inspect msg}")
+    			:error_logger.error_msg("Not implemented: #{__MODULE__}.send_release(#{inspect queue}, #{inspect msg}")
     		end
 
     		def send_received(queue, msg) do
-    			:error_logger.error_msg("Not implemted: #{__MODULE__}.send_received(#{inspect queue}, #{inspect msg}")
+    			:error_logger.error_msg("Not implemented: #{__MODULE__}.send_received(#{inspect queue}, #{inspect msg}")
     		end
 
  	    	defoverridable [send_msg: 2, send_complete: 2, send_release: 2, send_received: 2]
