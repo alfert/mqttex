@@ -154,13 +154,20 @@ defmodule Mqttex.QoS1Sender do
 	end
 	
 	def send_msg(msg, id, mod, sender, duplicate) do
-		m = Mqttex.Msg.Publish.duplicate(msg, duplicate == :second)
+		m = case msg do 
+			%Mqttex.Msg.Publish{} -> Mqttex.Msg.Publish.duplicate(msg, duplicate == :second)
+			%Mqttex.Msg.Subscribe{} -> Mqttex.Msg.Subscribe.duplicate(msg, duplicate == :second)
+			%Mqttex.Msg.Unsubscribe{} -> Mqttex.Msg.Unsubscribe.duplicate(msg, duplicate == :second)
+		end
 		timeout = mod.send_msg(sender, m)
 		receive do
 			%Mqttex.Msg.Simple{msg_type: :pub_ack, msg_id: ^id}   -> :ok
-			%Mqttex.Msg.SubAck{msg_id: ^id}                       -> :ok
-			%Mqttex.Msg.Simple{msg_type: :unsub_ack, msg_id: ^id} -> :ok
-			# Mqttex.UnSubAckMsg[msg_id: ^id] -> :ok
+			%Mqttex.Msg.SubAck{msg_id: ^id} = ack_msg             -> 
+				mod.on_message(sender, ack_msg)
+				:ok
+			%Mqttex.Msg.Simple{msg_type: :unsub_ack, msg_id: ^id} = ack_msg -> 
+				mod.on_message(sender, ack_msg)
+				:ok
 			after  timeout                  -> send_msg(m, id, mod, sender, :second)
 		end
 	end
