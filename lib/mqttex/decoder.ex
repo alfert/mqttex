@@ -48,7 +48,7 @@ defmodule Mqttex.Decoder do
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :unsubscribe}), do: decode_unsubscribe(msg)
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :sub_ack}), do: decode_sub_ack(msg)
 	def decode_message(msg, h = %Mqttex.Msg.FixedHeader{message_type: :connect}), do: decode_connect(msg)
-	def decode_message(<<_reserved :: [bytes, size(1)], status :: [integer, size(8)]>>, 
+	def decode_message(<<_reserved :: bytes-size(1), status :: integer-size(8)>>, 
 		h = %Mqttex.Msg.FixedHeader{message_type: :conn_ack}), 
 		do: Mqttex.Msg.conn_ack(conn_ack_status(status))
 		
@@ -61,7 +61,7 @@ defmodule Mqttex.Decoder do
 		{msg_id, payload} = case h.qos do
 			:fire_and_forget -> {0, m1}
 			_   -> 
-				<<id :: [integer, unsigned, size(16)], content :: binary>> = m1
+				<<id :: unsigned-integer-size(16), content :: binary>> = m1
 				{id, content}
 		end
 		## create a publish message 
@@ -70,13 +70,13 @@ defmodule Mqttex.Decoder do
 	end
 
 	@spec decode_unsubscribe(binary) :: Mqttex.Msg.Unsubscibe.t
-	def decode_unsubscribe(<<msg_id :: [integer, unsigned, size(16)], content :: binary>>) do
+	def decode_unsubscribe(<<msg_id :: unsigned-integer-size(16), content :: binary>>) do
 		topics = utf8_list(content)
 		Mqttex.Msg.unsubscribe(topics, msg_id)
 	end
 
 	@spec decode_sub_ack(binary) :: Mqttex.Msg.SubAck.t
-	def decode_sub_ack(<<msg_id :: [integer, unsigned, size(16)], content :: binary>>) do
+	def decode_sub_ack(<<msg_id :: unsigned-integer-size(16), content :: binary>>) do
 		granted_qos = qos_list(content)
 		Mqttex.Msg.sub_ack(granted_qos, msg_id)
 	end
@@ -97,7 +97,7 @@ defmodule Mqttex.Decoder do
 	end
 
 	@spec decode_subscribe(binary, Mqttex.Msg.FixedHeader.t) :: Mqttex.Msg.Subscribe.t
-	def decode_subscribe(<<msg_id :: size(16), payload :: binary>>, h) do
+	def decode_subscribe(<<msg_id :: unsigned-integer-size(16), payload :: binary>>, h) do
 		topics = topics(payload)
 		%Mqttex.Msg.Subscribe{ Mqttex.Msg.subscribe(topics, msg_id) | header: h}
 		#	Mqttex.Msg.Subscribe.duplicate(h.duplicate == 1)
@@ -130,7 +130,7 @@ defmodule Mqttex.Decoder do
 			
 	@doc "Decodes a binary as list of qos entries"
 	def qos_list(<<>>, acc), do: Enum.reverse acc
-	def qos_list(<<q :: [size(8)], rest :: binary>>, acc \\ []) do
+	def qos_list(<<q :: size(8), rest :: binary>>, acc \\ []) do
 		qos_list(rest, [binary_to_qos(q) | acc])
 	end
 	
@@ -138,7 +138,7 @@ defmodule Mqttex.Decoder do
 
 	@doc "Expects a 16 bit binary and returns its value as integer"
 	@spec get_msgid(binary) :: integer	
-	def get_msgid(<<id :: [integer, unsigned, size(16)]>>), do: id	
+	def get_msgid(<<id :: unsigned-integer-size(16)>>), do: id	
 
 	@doc "Decodes an entire list of utf8 encodes strings"
 	@spec utf8_list(binary, [binary]) :: [binary]
@@ -155,14 +155,15 @@ defmodule Mqttex.Decoder do
 	remaining input message.
 	"""
 	@spec utf8(binary) :: {binary, binary}
-	def utf8(<<length :: [integer, unsigned, size(16)], content :: [bytes, size(length)], rest :: binary>>) do
+	def utf8(<<length :: integer-unsigned-size(16), content :: bytes-size(length), rest :: binary>>) do
 		{content, rest}
 	end
 	
 
 
 	@spec binary_to_length(binary, integer, next_byte_fun) :: integer
-	def binary_to_length(<<overflow :: size(1), len :: size(7)>>, count = 0 \\ 4, readByte) do
+	def binary_to_length(bin, count \\ 4, readByte_fun)
+	def binary_to_length(_bin, count = 0, _readByte) do
 		raise "Invalid length"
 	end
 	def binary_to_length(<<overflow :: size(1), len :: size(7)>>, count, readByte) do

@@ -3,8 +3,10 @@ defmodule Mqttex.Msg do
 		@moduledoc """
 		Defines all simple messages as structs. They contain at most a message id.
 		"""
-		defstruct msg_type: :reserved :: Mqttex.simple_message_type, 
-			msg_id: 0 :: integer
+		defstruct msg_type: :reserved, # :: Mqttex.simple_message_type, 
+			msg_id: # 0 :: integer
+
+		@type t :: %__MODULE__{} 
 	end
 	
 	@doc "Creates a new simple message of type `pub_ack`"
@@ -32,8 +34,9 @@ defmodule Mqttex.Msg do
 		@moduledoc """
 		Defines the pub_rel message, which can be sent many times and hence is no simple message.
 		"""
-		defstruct msg_id: 0 :: pos_integer,
-			duplicate: false :: boolean
+		defstruct msg_id: 0, # :: pos_integer,
+			duplicate: false # :: boolean
+		@type t :: %__MODULE__{} 
 	end
 
 	@doc "Creates a new  message of type `pub_rel`"
@@ -45,7 +48,8 @@ defmodule Mqttex.Msg do
 		@moduledoc """
 		Define the `conn ack` message
 		"""
-		defstruct status: :ok :: Mqttex.conn_ack_type
+		defstruct status: :ok # :: Mqttex.conn_ack_type
+		@type t :: %__MODULE__{} 
 	end
 
 	@doc "Creates a new message of type `conn_ack`"
@@ -55,11 +59,12 @@ defmodule Mqttex.Msg do
 		@moduledoc """
 		Defines the fixed header of a MQTT message.
 		"""
-		defstruct message_type: :reserved :: Mqttex.message_type,
-			duplicate: false :: boolean,
-			qos: :fire_and_forget :: Mqttex.qos_type,
-			retain: false :: boolean,
-			length: 0 :: pos_integer
+		defstruct message_type: :reserved, # :: Mqttex.message_type,
+			duplicate: false, # :: boolean,
+			qos: :fire_and_forget, # :: Mqttex.qos_type,
+			retain: false, # :: boolean,
+			length: 0 # :: pos_integer
+		@type t :: %__MODULE__{} 			
 	end
 
 	def fixed_header(msg_type \\ :reserved, dup \\ false, qos \\ :fire_and_forget, 
@@ -76,10 +81,11 @@ defmodule Mqttex.Msg do
 		Defines the publish message.
 		"""
 
-		defstruct topic: "" :: binary,
-			msg_id: 0 :: pos_integer,
-			message: "" :: binary,
-			header: %FixedHeader{} :: Mqttex.Msg.FixedHeader 
+		defstruct topic: "", # :: binary,
+			msg_id: 0, # :: pos_integer,
+			message: "", # :: binary,
+			header: %FixedHeader{} # :: Mqttex.Msg.FixedHeader 
+		@type t :: %__MODULE__{} 
 
 		@doc "Sets the duplicate flag to `dup` in the message"
 		def duplicate(%Publish{header: h} = m, dup \\ true) do
@@ -111,9 +117,10 @@ defmodule Mqttex.Msg do
 
 
 	defmodule Unsubscribe do
-		defstruct topics: [] :: [binary],
-			msg_id: 0 :: pos_integer,
-			header: %FixedHeader{} :: Mqttex.Msg.FixedHeader 
+		defstruct topics: [], # :: [binary],
+			msg_id: 0, # :: pos_integer,
+			header: %FixedHeader{} # :: Mqttex.Msg.FixedHeader 
+		@type t :: %__MODULE__{} 
 
 		@doc "Sets the duplicate flag to `dup` in the message"
 		def duplicate(%Unsubscribe{header: h} = m, dup \\ true) do
@@ -138,9 +145,10 @@ defmodule Mqttex.Msg do
 	end
 	
 	defmodule SubAck do
-		defstruct msg_id: 0 :: pos_integer, 
-			granted_qos: [] :: [pos_integer],
-			header: %FixedHeader{} :: FixedHeader.t
+		defstruct msg_id: 0, # :: pos_integer, 
+			granted_qos: [], # :: [pos_integer],
+			header: %FixedHeader{} # :: FixedHeader.t
+		@type t :: %__MODULE__{} 
 
 		@doc "Sets the message id"
 		def msg_id(%SubAck{} = m, id \\ 0) do
@@ -159,9 +167,10 @@ defmodule Mqttex.Msg do
 	end
 	
 	defmodule Subscribe do
-		defstruct msg_id: 0 :: pos_integer,
-			header: %FixedHeader{} :: FixedHeader.t,
-			topics: [{"", :fire_and_forget}] :: [{binary, Mqttex.qos_type}]
+		defstruct msg_id: 0, # :: pos_integer,
+			header: %FixedHeader{}, # :: FixedHeader.t,
+			topics: [{"", :fire_and_forget}] # :: [{binary, Mqttex.qos_type}]
+		@type t :: %__MODULE__{} 
 
 		@doc "Sets the message id"
 		def msg_id(%Subscribe{} = m, id \\ 0) do
@@ -187,18 +196,19 @@ defmodule Mqttex.Msg do
 
 	defmodule Connection do
 
-		defstruct client_id: "" :: binary,
-			user_name: "" :: binary,
-			password: "" :: binary,
-			keep_alive: :infinity, # or the keep-alive in milliseconds (=1000*mqtt-keep-alive)
+		defstruct client_id: "", # :: binary,
+			user_name: "", # :: binary,
+			password: "", # :: binary,
+			keep_alive:  :infinity, # or the keep-alive in milliseconds (=1000*mqtt-keep-alive)
 			# keep_alive_server: :infinity, # or 1.5 * keep-alive in milliseconds (=1500*mqtt-keep-alive)
-			last_will: false :: boolean,
-			will_qos: :fire_and_forget :: Mqttex.qos_type,
-			will_retain: false :: boolean,
-			will_topic: "" :: binary,
-			will_message: "" :: binary, 
-			clean_session: true :: boolean,
-			header: %FixedHeader{} :: FixedHeader.t
+			last_will: false, # :: boolean,
+			will_qos: :fire_and_forget, # :: Mqttex.qos_type,
+			will_retain: false, # :: boolean,
+			will_topic: "", # :: binary,
+			will_message: "", # :: binary, 
+			clean_session: true, # :: boolean,
+			header: %FixedHeader{} # :: FixedHeader.t
+		@type t :: %__MODULE__{} 
 			
 	end	
 

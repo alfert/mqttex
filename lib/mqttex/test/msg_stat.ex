@@ -5,8 +5,9 @@ defmodule Mqttex.Test.MsgStat do
 
 	require Lager
 
-	defstruct messages: 0 :: pos_integer, 
-		losses: 0 :: pos_integer
+	defstruct messages: 0, # :: pos_integer, 
+		losses: 0 # :: pos_integer
+		@type t :: %__MODULE__{} 
 
 	def start_link() do
 		:gen_server.start_link({:local, @my_name}, __MODULE__, [], [])
@@ -58,7 +59,7 @@ defmodule Mqttex.Test.MsgStat do
 		{:stop, :normal, state}
 	end	
 
-	def terminate(reason, state) do
+	def terminate(reason, _state) do
 		Lager.info "Terminating MsgStag with reason #{inspect reason}"
 		:ok
 	end

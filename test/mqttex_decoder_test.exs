@@ -178,7 +178,7 @@ defmodule MqttexDecoderTest do
 		
 		IO.puts "encoded connect = #{inspect m}"
 
-		<<header :: [binary, size(1)], l :: [integer, size(8)], msg :: binary>> = m
+		<<header :: binary-size(1), l :: integer-size(8), msg :: binary>> = m
 		assert connect.header.length == byte_size(msg)
 		enc_msg = message(header, :binary.bin_to_list(msg))
 

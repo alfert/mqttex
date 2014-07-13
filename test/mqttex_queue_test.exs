@@ -195,7 +195,8 @@ defmodule MqttexQueueTest do
 	Slurps all messages once in order and after that slurps any remaining messages
 	the process mailbox until `:done` is found
 	"""
-	def slurp_all([m | tail], found \\ HashDict.new, timeout \\ 5_000)
+	def slurp_all(message, found \\ HashDict.new, timeout \\ 5_000)
+	def slurp_all([m | tail], found, timeout)
 		when is_binary(m) do
 		receive do
 			%Mqttex.Msg.Publish{message: ^m} -> # when m == msg -> 

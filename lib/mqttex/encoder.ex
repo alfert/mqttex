@@ -65,12 +65,12 @@ defmodule Mqttex.Encoder do
 			encode_length(length) :: binary>>
 	end
 
-	def utf8(str), do: <<byte_size(str) :: [big, size(16)]>> <> str	
+	def utf8(str), do: <<byte_size(str) :: big-size(16)>> <> str	
 
-	def msg_id(id) when is_integer(id), do: <<id :: [big, size(16)]>>
+	def msg_id(id) when is_integer(id), do: <<id :: big-size(16)>>
 	
 	def keep_alive(:infinity), do: <<0 :: size(16)>>
-	def keep_alive(n), do: <<n :: [size(16), big]>>
+	def keep_alive(n), do: <<n :: big-size(16)>>
 
 	def encode_length(0), do: <<0x00>>
 	def encode_length(l) when l <= 268_435_455, do: encode_length(l, <<>>)
