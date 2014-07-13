@@ -15,8 +15,8 @@ defmodule Mqttex.Encoder do
 	def encode(%Mqttex.Msg.Publish{msg_id: id, header: header, topic: topic, message: message}), 
 		do: <<encode_header(header), utf8(topic), msg_id(id) :: binary, utf8(message)>>
 	def encode(%Mqttex.Msg.Subscribe{msg_id: id, header: header, topics: topics}),
-		do: <<encode_header(header), msg_id(id), 
-			topics |> Enum.map_join(fn({t, q}) -> utf8(t) <> qos_binary(q) end)>>
+		do: encode_header(header) <> msg_id(id) <>
+			(topics |> Enum.map_join(fn({t, q}) -> utf8(t) <> <<qos_binary(q) :: size(8)>> end))
 	def encode(%Mqttex.Msg.SubAck{msg_id: id, header: header, granted_qos: qos}), 
 		do: <<encode_header(header), msg_id(id), qos |> Enum.join_map &qos_binary/1 >>
 	def encode(%Mqttex.Msg.Unsubscribe{msg_id: id, header: header, topics: topics}),
@@ -49,7 +49,7 @@ defmodule Mqttex.Encoder do
 
 
 	@doc "Returns the one byte fixed header and the length encoding"
-	def encode_header(:pub_rel, dup)do
+	def encode_header(:pub_rel, dup) do
 		<<msg_type_to_binary(:pub_rel) :: size(4),
 			boolean_to_binary(dup) :: bits, 
 			qos_binary(:at_least_once) :: size(2), 
