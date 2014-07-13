@@ -11,16 +11,16 @@ defmodule Mqttex.Encoder do
 	def encode(%Mqttex.Msg.ConnAck{status: status}), 
 		do: <<msg_type_to_binary(:conn_ack) :: size(4), 0 :: size(4), 0x02, 0x00, conn_ack_status(status)>>
 	def encode(%Mqttex.Msg.PubRel{msg_id: id, duplicate: dup}), 
-		do: <<encode_header(:pub_rel, dup), msg_id(id) :: binary>>
+		do: encode_header(:pub_rel, dup) <> msg_id(id)
 	def encode(%Mqttex.Msg.Publish{msg_id: id, header: header, topic: topic, message: message}), 
-		do: <<encode_header(header), utf8(topic), msg_id(id) :: binary, utf8(message)>>
+		do: encode_header(header) <> utf8(topic) <> msg_id(id) <> utf8(message)
 	def encode(%Mqttex.Msg.Subscribe{msg_id: id, header: header, topics: topics}),
 		do: encode_header(header) <> msg_id(id) <>
 			(topics |> Enum.map_join(fn({t, q}) -> utf8(t) <> <<qos_binary(q) :: size(8)>> end))
 	def encode(%Mqttex.Msg.SubAck{msg_id: id, header: header, granted_qos: qos}), 
-		do: <<encode_header(header), msg_id(id), qos |> Enum.join_map &qos_binary/1 >>
+		do: encode_header(header) <> msg_id(id) <> (qos |> Enum.join_map &qos_binary/1)
 	def encode(%Mqttex.Msg.Unsubscribe{msg_id: id, header: header, topics: topics}),
-		do: <<encode_header(header), msg_id(id), topics |> Enum.join_map &utf8/1 >>
+		do: encode_header(header) <> msg_id(id) <> (topics |> Enum.join_map &utf8/1)
 	def encode(%Mqttex.Msg.Connection{header: header, client_id: client_id, user_name: user, password: passwd, 
 			keep_alive: keep_alive, last_will: last_will} = con) do
 		h = <<encode_header(header) :: binary, 0x00, 0x06, "MQIsdp", 0x03>>
