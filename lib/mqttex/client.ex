@@ -68,6 +68,7 @@ defmodule Mqttex.Client do
 	Subscribes to the list of topics.
 	"""
 	def subscribe(server, topics) do
+		Lager.info ("Client #{inspect server}: Subscribing for topics #{inspect topics}")
 		msg = Mqttex.Msg.subscribe(topics)
 		:gen_server.cast(server, {:subscribe, msg})
 	end
@@ -92,9 +93,9 @@ defmodule Mqttex.Client do
 	## Gen Server Callbacks
 	###############################################################################
 		
-	@spec start_link(Mqttex.Msg.Connection.t, pid, pid | Connection.t) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
+	@spec start_link(Mqttex.Msg.Connection.t, pid, pid | Connection.t) :: {:ok, pid}
 	def start_link(%Mqttex.Msg.Connection{} = connection, client_proc \\ self(), network_channel) do
-		Lager.debug "#{__MODULE__}.start_link for #{connection.client_id}"
+		Lager.info "#{__MODULE__}.start_link for #{connection.client_id}"
 		start_result = :gen_server.start_link({:global, "C" <> connection.client_id}, @my_name, 
 									{connection, client_proc, network_channel},
 									[timeout: connection.keep_alive])
@@ -118,8 +119,8 @@ defmodule Mqttex.Client do
 		# use the module in network_channel as callback. Define a 
 		# behaviour for the various client network options.
 
-		channel = mod.start_channel(network_channel, self)
-		out = fn(msg) -> send(channel, msg) end
+		{channel, out} = mod.start_channel_with_outfun(network_channel, self)
+		# out = fn(msg) -> send(channel, msg) end
 		state = %Mqttex.Client{client_proc: client_proc, out_fun: out}
 		{:ok, state, state.timeout}		
 	end
@@ -140,6 +141,7 @@ defmodule Mqttex.Client do
 	end
 	def handle_cast({:subscribe, msg}, %Mqttex.Client{senders: senders} = state) do
 		new_sender = Mqttex.ProtocolManager.sender(state.senders, msg, __MODULE__, self)
+		Lager.info ("Client #{inspect state}: new_sender = #{inspect new_sender}")
 		{:noreply, %Mqttex.Client{state | senders: new_sender}, state.timeout}
 	end
 	def handle_cast({:receive, %Mqttex.Msg.Publish{} = msg}, state) do 
@@ -154,7 +156,7 @@ defmodule Mqttex.Client do
 	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_rec} = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, %Mqttex.Msg.Simple{msg_type: :pub_comp} = msg}, state), do: dispatch_sender(msg, state)
 	def handle_cast({:receive, %Mqttex.Msg.PubRel{}  = msg}, state), do: dispatch_receiver(msg, state)
-	def handle_cast({:receive, msg = %Mqttex.Msg.SubAck{}}, state), do:  dispatch_receiver(msg, state)
+	def handle_cast({:receive, msg = %Mqttex.Msg.SubAck{}}, state), do:  dispatch_sender(msg, state)
 	def handle_cast({:receive, msg = %Mqttex.Msg.ConnAck{}}, state) do
 		:ok = on_message(self, msg)
 		{:noreply, state, state.timeout}
@@ -205,7 +207,7 @@ defmodule Mqttex.Client do
 
 	# Executes the send of a message as internal function
 	defp do_send_msg(msg, %Mqttex.Client{out_fun: out_fun} = state) do
-		Lager.debug("Mqttex.Client.do_send: #{inspect msg}")
+		Lager.info("Mqttex.Client.do_send: #{inspect msg}")
 		out_fun.(msg)
 	end
 
