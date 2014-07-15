@@ -106,7 +106,7 @@ defmodule Mqttex.TopicManager do
 		end
 		{new_state, subscribed_clients} = manage_topic_start(topic, state)
 		Enum.each(subscribed_clients, fn({c, q}) -> Mqttex.Topic.subscribe(topic, q, c)end)
-		{:return, :ok, new_state}
+		{:reply, :ok, new_state}
 	end
 	def handle_call({:subscribe, %Mqttex.Msg.Subscribe{topics: topics}, _from}, client, state) do
 		# manage the state ...
@@ -116,8 +116,8 @@ defmodule Mqttex.TopicManager do
 		Enum.each(new_topics, fn(t, q) -> Mqttex.Topic.subscribe(t, q, client) end)
 
 		# We support any type of QoS, thus the granted list contains simply the requested qos
-		granted = Enum.map(topics, fn(_topic, qos) -> qos end)
-		{:return, granted, new_state}
+		granted = Enum.map(topics, fn({_topic, qos}) -> qos end)
+		{:reply, granted, new_state}
 	end
 	
 	@doc """
