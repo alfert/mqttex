@@ -61,4 +61,11 @@ defmodule MqttexEncoderTest do
 			0x00, 0x00, 
 			0x00, 0x07, "topic 1", 0>>
 	end
+
+	test "sub_ack message" do
+		sub_ack = Mqttex.Msg.sub_ack([:fire_and_forget, :exactly_once], 23)
+		assert %Mqttex.Msg.FixedHeader{} = sub_ack.header
+		assert Mqttex.Encoder.encode(sub_ack) == <<0x90, 0x04,
+			0x00, 23, 0x00, 0x02>>
+	end
 end

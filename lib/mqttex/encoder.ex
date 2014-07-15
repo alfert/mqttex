@@ -18,9 +18,9 @@ defmodule Mqttex.Encoder do
 		do: encode_header(header) <> msg_id(id) <>
 			(topics |> Enum.map_join(fn({t, q}) -> utf8(t) <> <<qos_binary(q) :: size(8)>> end))
 	def encode(%Mqttex.Msg.SubAck{msg_id: id, header: header, granted_qos: qos}), 
-		do: encode_header(header) <> msg_id(id) <> (qos |> Enum.join_map &qos_binary/1)
+		do: encode_header(header) <> msg_id(id) <> (qos |> Enum.map_join &(<<qos_binary(&1) :: size(8)>>))
 	def encode(%Mqttex.Msg.Unsubscribe{msg_id: id, header: header, topics: topics}),
-		do: encode_header(header) <> msg_id(id) <> (topics |> Enum.join_map &utf8/1)
+		do: encode_header(header) <> msg_id(id) <> (topics |> Enum.map_join &utf8/1)
 	def encode(%Mqttex.Msg.Connection{header: header, client_id: client_id, user_name: user, password: passwd, 
 			keep_alive: keep_alive, last_will: last_will} = con) do
 		h = <<encode_header(header) :: binary, 0x00, 0x06, "MQIsdp", 0x03>>
