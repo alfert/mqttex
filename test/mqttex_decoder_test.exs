@@ -60,7 +60,7 @@ defmodule MqttexDecoderTest do
 	end
 
 	test "publish a message" do
-		m = message(<<0x32>>, [0x00, 0x03, 0x61, 0x2f, 0x62, 0x00, 0x0a, "h", "e", "l", "l", "o"])
+		m = message(<<0x32>>, [0x00, 0x03, "a", "/", "b", 0x00, 0x0a, "h", "e", "l", "l", "o"])
 		assert %Mqttex.Msg.Publish{} = m
 		assert m.topic == "a/b"
 		assert m.msg_id == 10
