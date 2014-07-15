@@ -55,4 +55,10 @@ defmodule MqttexEncoderTest do
 			2, 0, 0, 0, 12, "client Nr. 1">>
 	end
 
+	test "subscribe message" do
+		subscribe = Mqttex.Msg.subscribe([{"topic 1", :fire_and_forget}])
+		assert Mqttex.Encoder.encode(subscribe) == <<0x82, subscribe.header.length, 
+			0x00, 0x00, 
+			0x00, 0x07, "topic 1", 0>>
+	end
 end
