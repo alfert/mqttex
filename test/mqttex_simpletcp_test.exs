@@ -137,6 +137,7 @@ defmodule MqttexSimpleTCPTest do
 
 		# Subscribe to topic `topic`
 		:ok = Mqttex.Client.subscribe(sub, [{"topic", :fire_and_forget}])
+		assert_receive({:sub, msg}, 2_000, "Hmm, got no answer to subscribe")
 
 		{:ok, pub} = Mqttex.Client.connect("client-pub", "any user", "passwd", 
 			spawn_link(fn -> transmitter(:pub, tester) end), con)
