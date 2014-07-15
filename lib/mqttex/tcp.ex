@@ -49,14 +49,21 @@ defmodule Mqttex.TCP do
 	@doc """
 	Starts a new channel and returns its process id.
 	"""
-	def start_channel(%Mqttex.Client.Connection{server: server, port: port} = _con, client) do
-		looper = fn() -> 
-				{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 0}, {:active, false}])
-				passive_loop(socket, client, Mqttex.Client)
-			end
-		spawn_link(looper)
+	def start_channel_with_outfun(%Mqttex.Client.Connection{server: server, port: port} = _con, client) do
+		{:ok, socket} = :gen_tcp.connect(server, port, [:binary, {:packet, 0}, {:active, false}])
+		looper = fn() -> passive_loop(socket, client, Mqttex.Client) end
+		{spawn_link(looper), fn(msg) -> 
+			Lager.info("outfun #{inspect self}: Socket #{inspect socket} has to send message #{inspect msg}")
+			enc_msg = Mqttex.Encoder.encode(msg)
+			Lager.info("outfun #{inspect self}: encoded message: #{inspect enc_msg}")
+			:ok = :gen_tcp.send(socket, enc_msg)
+		end}
 	end
 	
+	def start_channel(con, client) do
+		{channel, _out} = start_channel_with_outfun(con, client)
+		channel
+	end
 
 	def passive_loop(socket, server, mod) do
 		Lager.info("passive_loop #{inspect self} for #{inspect socket} and process #{inspect server} with module #{mod}")
