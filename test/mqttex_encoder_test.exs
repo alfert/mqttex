@@ -72,8 +72,9 @@ defmodule MqttexEncoderTest do
 	test "publish message" do
 		pub = Mqttex.Msg.publish("a/b", "Hello", :fire_and_forget, 37)
 		assert Mqttex.Encoder.encode(pub) == <<0x30, 12, 
-			0x00, 0x03, "a/b", 0x00, 37,
-			0x00, 0x05, "Hello">>
+			0x00, 0x03, "a/b", 
+			0x00, 37,
+			"Hello">>
 	end
 
 end
