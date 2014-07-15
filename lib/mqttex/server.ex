@@ -142,18 +142,25 @@ defmodule Mqttex.Server do
 		clean_disconnect(msg, from, s)
 	end
 	
+	@doc """
+	Sends a message to the client process and returns the new state with updated
+	timeout.
+	"""
+	def local_send_to_client(%{} = msg, %Mqttex.Server{client_proc: client, connection: con} = state) do
+		timeout = calc_timeout(msg, state)
+		send(client, msg)
+		%Mqttex.Server{state | timeout: timeout}
+	end
 
 	#############################################################################################
 	#### Event/State Handling
 	#############################################################################################
 
 	@doc "Events in state `clean_session` with replies"
-	def clean_session({:send, msg}, _from, %Mqttex.Server{client_proc: client, connection: con} = state) do
+	def clean_session({:send, msg}, _from, %Mqttex.Server{connection: con} = state) do
 		# Send the message directly to the client and calculate the new timeout
-		timeout = calc_timeout(msg, state)
-		send(client, msg)
-		new_state = %Mqttex.Server{state | timeout: timeout}
-		{:reply, timeout, new_state, con.keep_alive}
+		new_state = local_send_to_client(msg, state)
+		{:reply, state.timeout, new_state, con.keep_alive}
 	end
 	def clean_session(:ping, _from, %Mqttex.Server{connection: con} = state) do
 		{:reply, :pong, state, con.keep_alive}
@@ -185,10 +192,14 @@ defmodule Mqttex.Server do
 	def clean_session({:receive, %Mqttex.Msg.Subscribe{} = topics}, %Mqttex.Server{}=state) do
 		# subscribe to topics at the subscription server
 		#   -> the server adds all existing topics 
+		granted_qos = Mqttex.TopicManager.subscribe(topics, state.connection.client_id)
+		Lager.info("Granted QoS: #{inspect granted_qos} for topics #{inspect topics}")
 		# send the status of freshly subscribed topics back to the client
-		
+		suback = Mqttex.Msg.sub_ack(granted_qos, topics.msg_id)
+		new_state = local_send_to_client(suback, state)
 		# TODO: return the new_state
-		new_state = state
+		# BUT why should we store all subscribed topics here? 
+		# this is already done in the topic manager
 		{:noreply, new_state, new_state.connection.keep_alive}
 	end
 	def clean_session({:receive, %Mqttex.Msg.Unsubscribe{} = topics}, %Mqttex.Server{}=state) do
