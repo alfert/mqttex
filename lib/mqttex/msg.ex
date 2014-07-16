@@ -110,7 +110,7 @@ defmodule Mqttex.Msg do
 	def publish(topic, message, qos, msg_id \\ 0) do
 		length = byte_size(message) + 
 		         byte_size(topic) + 2 + # with 16 bit size of topic
-		         2 # 16 bit message id
+		         (if qos == :fire_and_forget, do: 0, else: 2) # 16 bit message id
 		h = fixed_header(:publish, false, qos, false, length)
 		%Publish{topic: topic, message: message, msg_id: msg_id, header: h}
 	end

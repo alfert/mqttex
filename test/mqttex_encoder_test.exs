@@ -69,9 +69,16 @@ defmodule MqttexEncoderTest do
 			0x00, 23, 0x00, 0x02>>
 	end
 
-	test "publish message" do
+	test "publish message fire and forget" do
 		pub = Mqttex.Msg.publish("a/b", "Hello", :fire_and_forget, 37)
-		assert Mqttex.Encoder.encode(pub) == <<0x30, 12, 
+		assert Mqttex.Encoder.encode(pub) == <<0x30, 10, 
+			0x00, 0x03, "a/b", 
+			"Hello">>
+	end
+
+	test "publish message exactly_once" do
+		pub = Mqttex.Msg.publish("a/b", "Hello", :exactly_once, 37)
+		assert Mqttex.Encoder.encode(pub) == <<0x34, 12, 
 			0x00, 0x03, "a/b", 
 			0x00, 37,
 			"Hello">>

@@ -12,6 +12,9 @@ defmodule Mqttex.Encoder do
 		do: <<msg_type_to_binary(:conn_ack) :: size(4), 0 :: size(4), 0x02, 0x00, conn_ack_status(status)>>
 	def encode(%Mqttex.Msg.PubRel{msg_id: id, duplicate: dup}), 
 		do: encode_header(:pub_rel, dup) <> msg_id(id)
+	def encode(%Mqttex.Msg.Publish{msg_id: id, header: %Mqttex.Msg.FixedHeader{qos: :fire_and_forget} = header, 
+			topic: topic, message: message}) when is_binary(message), 
+		do: encode_header(header) <> utf8(topic) <> message
 	def encode(%Mqttex.Msg.Publish{msg_id: id, header: header, topic: topic, message: message}) when is_binary(message), 
 		do: encode_header(header) <> utf8(topic) <> msg_id(id) <> message
 	def encode(%Mqttex.Msg.Subscribe{msg_id: id, header: header, topics: topics}),
