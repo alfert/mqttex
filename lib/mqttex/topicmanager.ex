@@ -54,10 +54,12 @@ defmodule Mqttex.TopicManager do
 			Mqttex.Topic.publish(msg, from)
 		catch
 			# Topic does not exist, so start it. 
-			:exit, {:no_proc, _} -> 
+			:exit, {:noproc, _} -> 
 				start_topic(msg, from)
 				Mqttex.Topic.publish(msg, from)
-			any -> throw any
+			:exit, any -> 
+				Lager.error "Got Exception #{inspect any}"
+				throw any
 		end
 	end
 	
@@ -98,7 +100,7 @@ defmodule Mqttex.TopicManager do
 		# from concurrent starts of the topics are resolved here: after start_topic
 		# the topic must be there. Otherwise we have a severe problem to be solved
 		# somewhere else.
-		:ok = case Mqttex.SubTopic.start_topic(topic) do
+		:ok = case Mqttex.SupTopic.start_topic(topic) do
 			{:ok, _pid} -> :ok
 			{:ok, _pid, _info} -> :ok
 			{:error, {:already_started, _child}} -> :ok
