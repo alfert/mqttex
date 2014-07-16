@@ -79,12 +79,12 @@ defmodule Mqttex.Topic do
 		{:reply, :ok, state}
 	end
 	def handle_call({:subscribe, client, qos}, _from, %Mqttex.Topic{subscriptions: subs} = state) do
-		new_state = state.subscriptions(Dict.put(subs, client, qos))
+		new_state = %__MODULE__{state | subscriptions: Dict.put(subs, client, qos)}
 		{:reply, qos, new_state}
 	end
 	def handle_call({:unsubscribe, client}, _from, %Mqttex.Topic{subscriptions: subs} = state) do
 		new_subs = Dict.delete(subs, client)
-		new_state = state.subscriptions new_subs
+		new_state = %__MODULE__{state | subscriptions: new_subs}
 		{:reply, :ok, new_state}
 	end
 	
