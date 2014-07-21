@@ -13,9 +13,9 @@ defmodule Mqttex.Decoder do
 	# @type decode(binary, next_byte_fun, read_message_fun) :: all_message_types
 	def decode(msg = <<_m :: size(16)>>, readByte, readMsg) do
 		header = decode_fixheader(msg, readByte)
-		Lager.info ("Header = #{inspect header}")
+		# Lager.info ("Header = #{inspect header}")
 		var_m = readMsg.(header.length)
-		Lager.info("decoding remaing messages #{inspect var_m}")
+		# Lager.info("decoding remaing messages #{inspect var_m}")
 		decode_message(var_m, header)
 	end
 
