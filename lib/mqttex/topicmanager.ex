@@ -110,7 +110,7 @@ defmodule Mqttex.TopicManager do
 		Enum.each(subscribed_clients, fn({c, q}) -> Mqttex.Topic.subscribe(topic, q, c)end)
 		{:reply, :ok, new_state}
 	end
-	def handle_call({:subscribe, %Mqttex.Msg.Subscribe{topics: topics}, _from}, client, state) do
+	def handle_call({:subscribe, %Mqttex.Msg.Subscribe{topics: topics}, client}, _from, state) do
 		# manage the state ...
 		{new_state, new_topics} = manage_subscriptions(topics, client, state)
 
