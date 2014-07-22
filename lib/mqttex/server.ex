@@ -57,9 +57,9 @@ defmodule Mqttex.Server do
 	def receive(server, %Mqttex.Msg.Subscribe{} = msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Unsubscribe{} = msg), do: do_receive(server, msg)
 	def receive(server, %Mqttex.Msg.Simple{} = msg), do: do_receive(server, msg)
+	def receive(server, %Mqttex.Msg.PubRel{} = msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.PingReqMsg[] = msg), do: do_receive(server, msg)
 	# def receive(server, Mqttex.DisconnectMsg[] = msg), do: do_receive(server, msg)
-	# def receive(server, Mqttex.PubRelMsg[] = msg), do: do_receive(server, msg)
 	
 	# internal function sending the message to the server
 	defp do_receive(server, msg) do
@@ -187,7 +187,7 @@ defmodule Mqttex.Server do
 		new_rec = Mqttex.ProtocolManager.receiver(state.receivers, msg, __MODULE__, self)
 		{:noreply, %Mqttex.Server{state | receivers: new_rec}, state.connection.keep_alive}
 	end
-	def clean_session({:receive, %Mqttex.Msg.Simple{msg_type: :pub_rel}= msg}, 
+	def clean_session({:receive, %Mqttex.Msg.PubRel{}= msg}, 
 			%Mqttex.Server{receivers: receivers} = state) do
 		# delegate to the receivers
 		Mqttex.ProtocolManager.dispatch_receiver(receivers, msg)
