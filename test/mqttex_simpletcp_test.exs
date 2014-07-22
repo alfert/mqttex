@@ -141,12 +141,14 @@ defmodule MqttexSimpleTCPTest do
 		assert_receive({:pub, %Mqttex.Msg.ConnAck{status: :ok}}, 1_000, "Still no ConnAck :-(")
 			
 		# Publishing Hello
-		:ok = Mqttex.Client.publish(pub, "topic", "Hello", :fire_and_forget)
+		for qos <- [:fire_and_forget, :at_least_once, :exactly_once] do
+			:ok = Mqttex.Client.publish(pub, "topic", "Hello", qos)
 
-		# Waiting
-		receive do
-			message -> Lager.info "Got a message: #{inspect message} Is it a good one?"
-			after 1_000 -> flunk "got nothing from publishing"
+			# Waiting
+			receive do
+				message -> Lager.info "Got a message: #{inspect message} Is it a good one?"
+				after 1_000 -> flunk "got nothing from publishing with qos #{inspect qos}"
+			end
 		end
 		# Sleep sometime such that the ping mechanisms starts to work
 		# sleep(2_000)
