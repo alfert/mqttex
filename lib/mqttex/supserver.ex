@@ -25,9 +25,9 @@ defmodule Mqttex.SupServer do
     Creates a child specification for dynamically attaching a MQTTEX server to 
     the supervisor hierarchy
     """
-    def start_server(%Mqttex.Msg.Connection{} = connection, client_proc) do
+    def start_server(%Mqttex.Msg.Connection{} = connection, client_proc, out_fun) do
         # IO.puts "start server for #{connection.client_id}"
-        :supervisor.start_child @supervisor, [connection, client_proc]
+        :supervisor.start_child @supervisor, [connection, client_proc, out_fun]
     end
   
     @doc """

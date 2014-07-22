@@ -12,7 +12,7 @@ defmodule Mqttex.Server do
 
 	use GenServer
 	@my_name __MODULE__
-	@default_timeout 500 # 100m milliseconds timeout 
+	@default_timeout 5_000 # 100m milliseconds timeout 
 
 	require Lager
 	use Mqttex.SenderBehaviour
@@ -22,6 +22,7 @@ defmodule Mqttex.Server do
 
 	defstruct connection: :none, 
 		client_proc: :none,
+		client_out: :none,
 		state: :disconnected,
 		timeout: @default_timeout, 
 		subscriptions: [],
@@ -36,9 +37,9 @@ defmodule Mqttex.Server do
 	the reconnection can be executed. Otherwise an error occurs.
 	"""
 	@spec connect(Mqttex.Msg.Connection.t, pid) :: Mqttex.Msg.ConnAck.t | {Mqttex.Msg.ConnAck.t, pid}
-	def connect(%Mqttex.Msg.Connection{} = con, client_proc \\ self()) do
-		value = case Mqttex.SupServer.start_server(con, client_proc) do
-			{:error, {:already_started, pid}} -> reconnect(pid, con, client_proc) 
+	def connect(%Mqttex.Msg.Connection{} = con, client_proc \\ self(), out_fun) do
+		value = case Mqttex.SupServer.start_server(con, client_proc, out_fun) do
+			{:error, {:already_started, pid}} -> reconnect(pid, con, client_proc, out_fun) 
 			any -> any
 		end
 		case value do 
@@ -77,8 +78,9 @@ defmodule Mqttex.Server do
 	from the `Topic`.
 	"""	
 	def publish(server, topic, body, qos) do
+		Lager.info("Publishing #{inspect body} in topic #{topic} for server #{inspect server}")
 		msg = Mqttex.Msg.publish(topic, body, qos)
-		:gen_server.cast(server, {:publish, msg})
+		:ok = :gen_server.cast(server, {:publish, msg})
 	end
 
 	#############################################################################################
@@ -101,26 +103,31 @@ defmodule Mqttex.Server do
 	#############################################################################################
 
 	@spec start_link(Mqttex.Msg.Connection.t, pid) :: Mqttex.ConnAckMsg.t | {Mqttex.ConnAckMsg.t, pid}
-	def start_link(%Mqttex.Msg.Connection{} = connection, client_proc \\ self()) do
-		Lager.info "#{__MODULE__}.start_link for `#{connection.client_id}'"
-		:gen_server.start_link({:global, "S" <> connection.client_id}, @my_name, {connection, client_proc},
+	def start_link(%Mqttex.Msg.Connection{} = connection, client_proc \\ self(), out_fun) do
+		Lager.info "#{__MODULE__}.start_link for `#{inspect server_name(connection)}'"
+		:gen_server.start_link(server_name(connection), @my_name, {connection, client_proc, out_fun},
 									[timeout: connection.keep_alive])
 	end
 
+	# the server name used for registration and callbacks calculated from the 
+	# connection and its client_id. 
+	defp server_name(%Mqttex.Msg.Connection{} = connection), 
+		do: {:global, "S" <> connection.client_id}
+
 	@doc "Initializes the FSM"
-	def init({connection, client_proc}) do
+	def init({connection, client_proc, out_fun}) do
 		# TODO: check that the connection data is proper. Invalidity results in {:stop, error_code}, 
 		# where error_code is of type conn_ack_type
 		Lager.debug "#{__MODULE__}.init in #{inspect self} for client_proc #{inspect client_proc}"
 		{:ok, 
-			%Mqttex.Server{connection: connection, client_proc: client_proc, 
+			%Mqttex.Server{connection: connection, client_proc: client_proc, client_out: out_fun,
 				state: :clean_session}, 
 			connection.keep_alive }
 	end
 
 	# Reconnects an existing server with a new connection
-	defp reconnect(server, connection, client_proc) do
-		:gen_server.call(server, {:reconnect, connection, client_proc})
+	defp reconnect(server, connection, client_proc, out_fun) do
+		:gen_server.call(server, {:reconnect, connection, client_proc, out_fun})
 	end
 
 
@@ -146,9 +153,11 @@ defmodule Mqttex.Server do
 	Sends a message to the client process and returns the new state with updated
 	timeout.
 	"""
-	def local_send_to_client(%{} = msg, %Mqttex.Server{client_proc: client, connection: con} = state) do
+	def local_send_to_client(%{} = msg, %Mqttex.Server{client_proc: client, client_out: out_fun} = state) do
+		Lager.info("Send to client #{inspect client} the msg #{inspect msg}")
 		timeout = calc_timeout(msg, state)
-		send(client, msg)
+		# send(client, msg)
+		msg |> Mqttex.Encoder.encode |> out_fun . ()
 		%Mqttex.Server{state | timeout: timeout}
 	end
 
@@ -192,7 +201,7 @@ defmodule Mqttex.Server do
 	def clean_session({:receive, %Mqttex.Msg.Subscribe{} = topics}, %Mqttex.Server{}=state) do
 		# subscribe to topics at the subscription server
 		#   -> the server adds all existing topics 
-		granted_qos = Mqttex.TopicManager.subscribe(topics, state.connection.client_id)
+		granted_qos = Mqttex.TopicManager.subscribe(topics, server_name(state.connection))
 		Lager.info("Granted QoS: #{inspect granted_qos} for topics #{inspect topics}")
 		# send the status of freshly subscribed topics back to the client
 		suback = Mqttex.Msg.sub_ack(granted_qos, topics.msg_id)
@@ -227,9 +236,10 @@ defmodule Mqttex.Server do
 		new_state = %Mqttex.Server{state | senders: new_sender}
 		{:noreply, new_state, state.connection.keep_alive}
 	end
-	def clean_session({:on, msg}, %Mqttex.Server{} = state) do
+	def clean_session({:on, msg}, %Mqttex.Server{connection: con} = state) do
 		# TODO: Send the message to the Topic Master
-		IO.puts "Yeah: Got this message #{inspect msg}"
+		Lager.info "Yeah, got this message #{inspect msg}"
+		Mqttex.TopicManager.publish(msg, server_name(con))
 		{:noreply, state, state.connection.keep_alive}
 	end
 	def clean_session({:drop_receiver, msg_id}, %Mqttex.Server{receivers: receivers} = state) do
@@ -256,10 +266,11 @@ defmodule Mqttex.Server do
 	
 	
 	@doc "Reconnection with reply"
-	def clean_disconnect({:reconnect, connection, client_proc}, _from, %Mqttex.Server{}=state) do
+	def clean_disconnect({:reconnect, connection, client_proc, out_fun}, _from, %Mqttex.Server{}=state) do
 		{reply, new_state_data} = case check_connection(connection) do
 			:ok -> {{:ok, self},
-				%Mqttex.Server{state | connection: connection, client_proc: client_proc, state: :clean_session}}
+				%Mqttex.Server{state | connection: connection, client_proc: client_proc, 
+					client_out: out_fun, state: :clean_session}}
 			error -> {{:error, error}, state}
 		end
 		{:reply, reply, new_state_data, new_state_data.connection.keep_alive}
