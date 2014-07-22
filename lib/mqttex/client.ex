@@ -5,7 +5,7 @@ defmodule Mqttex.Client do
 	require Lager
 	use GenServer
 	@my_name __MODULE__
-	@default_timeout 500 # 100m milliseconds timeout 
+	@default_timeout 5_000 # 100m milliseconds timeout 
 
 	use Mqttex.SenderBehaviour
 	use Mqttex.ReceiverBehaviour
