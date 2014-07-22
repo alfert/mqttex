@@ -75,7 +75,7 @@ defmodule Mqttex.Topic do
 
 	def handle_call({:publish, %Mqttex.Msg.Publish{message: content} = _msg, _client}, 
 				    _from, %Mqttex.Topic{subscriptions: subs} = state) do
-		Enum.each(subs, fn({session, qos}) -> send_msg(session, content, qos) end)
+		Enum.each(subs, fn({session, qos}) -> send_msg(session, state.topic, content, qos) end)
 		{:reply, :ok, state}
 	end
 	def handle_call({:subscribe, client, qos}, _from, %Mqttex.Topic{subscriptions: subs} = state) do
@@ -92,8 +92,14 @@ defmodule Mqttex.Topic do
 	### Internal Implementation
 	####################################################################################
 
-	def send_msg(session, content, qos) do
-		Mqttex.Server.send_msg(session, content, qos)
+	###############
+	##
+	## This call to Server does not exist!
+	##
+	#################
+
+	def send_msg(session, topic, content, qos) do
+		Mqttex.Server.publish(session, topic, content, qos)
 	end
 
 end
