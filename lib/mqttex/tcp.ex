@@ -132,7 +132,7 @@ defmodule Mqttex.TCP do
 		out_fun = fn(msg) -> :gen_tcp.send(socket, msg) end
 		case Mqttex.Server.connect(con, self, out_fun) do
 			{msg, server_pid} -> 
-				send(self, msg)	
+				:gen_tcp.send(socket, msg |> Mqttex.Encoder.encode)
 				server_pid
 			error -> :gen_tcp.send(socket, :erlang.term_to_binary(error))
 		end
