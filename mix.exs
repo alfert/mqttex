@@ -3,11 +3,11 @@ defmodule Mqttex.Mixfile do
 
   
   def project do
-    elixirc_defaults = [:debug_info, :ignore_module_conflict, :docs]
+    # elixirc_defaults = [debug_info: true, ignore_module_conflict: true, docs: true]
     [ app: :mqttex,
       version: "0.0.1",
       elixir: "~> 0.14",
-      # elixirc_options: elixirc_defaults ++ options(Mix.env),
+      #elixirc_options: elixirc_defaults ++ options(Mix.env),
       deps: deps,
       dialyzer: [paths: ["_build/shared/lib/mqttex/ebin"] ], 
       # test_coverage: [tool: Coverex.Task],
@@ -41,19 +41,20 @@ defmodule Mqttex.Mixfile do
   defp deps do
     [
       # { :properex, ">= 0.1", [github: "yrashk/properex"]},
+      # {:dialyxir,"0.2.4",[github: "jeremyjh/dialyxir"]},
       {:exlager, ~r".*",[github: "khia/exlager"]},
       {:ranch,"0.9.0", [github: "extend/ranch", tag: "0.9.0"]},
-      {:dialyxir,"0.2.4",[github: "jeremyjh/dialyxir"]},
       # Generate documentation with ex_doc, valid for Elixir 0.14.1
       { :ex_doc, github: "elixir-lang/ex_doc", ref: "ca71b84b9c3c" },
       # Cover tests
       #{ :coverex, [path: "../coverex"] }
-      {:coverex, "~> 0.0.4"}
+      {:coverex, "~> 0.0.5"}
     ]
   end
 
   # Specific compilation options, e.g. for Lager
-  defp options(env) when env in [:dev, :test] do
-    [exlager_level: :debug, exlager_truncation_size: 8096]
-  end
+  # defp options(env) when env in [:dev, :test] do
+  #   [exlager_level: :debug, exlager_truncation_size: 8096]
+  # end
+  # defp options(env), do []
 end
