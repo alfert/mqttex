@@ -45,7 +45,7 @@ a separate supervisor exists.
 
 The several states are shown here the statechart: 
 
-![FSM of the Server Side](../mqtt-server-fsm.dot.png)
+![FSM of the Server Side](/mqtt-server-fsm.dot.png)
 
 ### Client Side
 
@@ -59,7 +59,7 @@ and delivered after a reconnect.
 In the destination queue the messages are represented as quadruples of
 `{topic, msg_id, qos, content}. 
 
-![Server Side Structure](../server-structure.dot.png)
+![Server Side Structure](/server-structure.dot.png)
 
 
 ### Fire and Forget
